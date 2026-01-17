@@ -75,6 +75,10 @@ class BuildCommand(BaseCommand):
         await self._update_step(tracker, progress, 4, StepStatus.RUNNING)
         start = time.time()
 
+        # These are guaranteed to be set by base.execute() before run_workflow is called
+        assert self.github is not None
+        assert session.pr_number is not None
+
         # Update PR description
         pr_body = f"""## Implementation for #{context.issue.number}
 

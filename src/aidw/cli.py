@@ -2,6 +2,7 @@
 
 import asyncio
 import sys
+from typing import Any
 
 import click
 
@@ -101,7 +102,7 @@ def config(set_credential: str | None) -> None:
 
     # Configure allowed users
     click.echo()
-    config_data = {}
+    config_data: dict[str, Any] = {}
     if CONFIG_FILE.exists():
         with open(CONFIG_FILE) as f:
             config_data = yaml.safe_load(f) or {}
@@ -276,11 +277,6 @@ def status(session_id: str) -> None:
 @click.option("--lines", "-n", default=50, help="Number of lines to show")
 def logs(follow: bool, lines: int) -> None:
     """View server logs."""
-    import subprocess
-
-    log_file = ensure_config_dir() or ""
-    log_path = str(get_settings().server.port)  # Placeholder for actual log path
-
     # For now, just echo that logs would be shown
     click.echo("Log viewing not yet implemented")
     click.echo("Use: tail -f ~/.aidw/aidw.log")

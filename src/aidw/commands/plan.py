@@ -74,6 +74,11 @@ class PlanCommand(BaseCommand):
         await self._update_step(tracker, progress, 2, StepStatus.RUNNING)
         start = time.time()
 
+        # These are guaranteed to be set by base.execute() before run_workflow is called
+        assert self.sandbox_manager is not None
+        assert self.github is not None
+        assert session.branch is not None
+
         # Push branch first (required before creating PR)
         await self.sandbox_manager.push_changes(executor.instance, session.branch)
 

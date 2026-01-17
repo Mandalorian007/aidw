@@ -125,7 +125,7 @@ class Database:
     ) -> None:
         """Update a session."""
         updates = ["updated_at = ?"]
-        values = [datetime.utcnow().isoformat()]
+        values: list[str | int] = [datetime.utcnow().isoformat()]
 
         if status is not None:
             updates.append("status = ?")
@@ -173,8 +173,8 @@ class Database:
     ) -> list[Session]:
         """List sessions with optional filters."""
         query = "SELECT * FROM sessions"
-        conditions = []
-        values = []
+        conditions: list[str] = []
+        values: list[str | int] = []
 
         if repo:
             conditions.append("repo = ?")
