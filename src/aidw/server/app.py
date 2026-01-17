@@ -6,6 +6,7 @@ from contextlib import asynccontextmanager
 from typing import Annotated
 
 from fastapi import BackgroundTasks, Depends, FastAPI, Header, Request, Response
+from pydantic import BaseModel
 
 from aidw import __version__
 from aidw.database import Database
@@ -19,6 +20,13 @@ from aidw.server.webhook import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+class HelloResponse(BaseModel):
+    """Response model for hello endpoint."""
+
+    message: str
+
 
 # Database instance
 db: Database | None = None
@@ -61,6 +69,16 @@ async def root():
 async def health():
     """Health check endpoint."""
     return {"status": "healthy"}
+
+
+@app.get("/hello", response_model=HelloResponse)
+async def hello() -> HelloResponse:
+    """Hello World endpoint for testing.
+
+    Returns:
+        HelloResponse: A greeting message
+    """
+    return HelloResponse(message="Hello, World!")
 
 
 async def process_command(cmd: ParsedCommand) -> None:
