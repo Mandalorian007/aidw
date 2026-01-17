@@ -8,9 +8,13 @@ import click
 from aidw import __version__
 from aidw.env import (
     get_settings,
+    get_credential,
     validate_required_credentials,
     create_default_config,
     ensure_config_dir,
+    CONFIG_DIR,
+    CREDENTIALS_FILE,
+    CONFIG_FILE,
 )
 
 
@@ -22,6 +26,84 @@ def cli() -> None:
     Trigger AI workflows from GitHub issue/PR comments.
     """
     pass
+
+
+@cli.command()
+def config() -> None:
+    """Configure API credentials and settings.
+
+    Prompts for each credential and saves to ~/.aidw/credentials.
+    Press Enter to keep existing values. Credentials are stored with 600 permissions.
+
+    \b
+    Credentials:
+      AIDW_WEBHOOK_SECRET  GitHub webhook signature secret
+      E2B_API_KEY          E2B sandbox API key
+      GH_TOKEN             GitHub PAT with repo scope
+
+    \b
+    Also configures allowed GitHub usernames in ~/.aidw/config.yml
+    """
+    import yaml
+
+    ensure_config_dir()
+
+    # Collect credentials
+    creds = {}
+    for key, description in [
+        ("AIDW_WEBHOOK_SECRET", "webhook secret"),
+        ("E2B_API_KEY", "E2B API key"),
+        ("GH_TOKEN", "GitHub token"),
+    ]:
+        existing = get_credential(key)
+        prompt_text = f"{key} ({description})"
+        if existing:
+            prompt_text += " [configured]"
+        val = click.prompt(prompt_text, default="", hide_input=True, show_default=False)
+        if val:
+            creds[key] = val
+        elif existing:
+            creds[key] = existing
+
+    # Save credentials
+    with open(CREDENTIALS_FILE, "w") as f:
+        for k, v in creds.items():
+            f.write(f"{k}={v}\n")
+    CREDENTIALS_FILE.chmod(0o600)
+    click.echo(f"Saved credentials: {CREDENTIALS_FILE}")
+
+    # Configure allowed users
+    click.echo()
+    config_data = {}
+    if CONFIG_FILE.exists():
+        with open(CONFIG_FILE) as f:
+            config_data = yaml.safe_load(f) or {}
+
+    current_users = config_data.get("auth", {}).get("allowed_users", [])
+    if current_users:
+        click.echo(f"Current allowed users: {', '.join(current_users)}")
+
+    users_input = click.prompt(
+        "Allowed GitHub usernames (comma-separated)",
+        default=",".join(current_users),
+        show_default=False,
+    )
+
+    if users_input:
+        users = [u.strip() for u in users_input.split(",") if u.strip()]
+        if "auth" not in config_data:
+            config_data["auth"] = {}
+        config_data["auth"]["allowed_users"] = users
+
+    # Ensure other defaults
+    if "server" not in config_data:
+        config_data["server"] = {"port": 8787, "workers": 3}
+    if "github" not in config_data:
+        config_data["github"] = {"bot_name": "aidw"}
+
+    with open(CONFIG_FILE, "w") as f:
+        yaml.dump(config_data, f, default_flow_style=False)
+    click.echo(f"Saved config: {CONFIG_FILE}")
 
 
 @cli.command()
@@ -41,7 +123,7 @@ def server(dev: bool, port: int | None, host: str | None) -> None:
         click.secho("Missing required credentials:", fg="red")
         for cred in missing:
             click.echo(f"  - {cred}")
-        click.echo("\nSet these environment variables or add to .env file.")
+        click.echo("\nRun 'aidw config' to configure credentials.")
         sys.exit(1)
 
     settings = get_settings()

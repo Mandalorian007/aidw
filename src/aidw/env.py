@@ -1,6 +1,6 @@
 """Configuration loading for AIDW.
 
-Follows the aitk pattern: env → config file → .env chain.
+Follows the aitk pattern: env → credentials file → config file chain.
 """
 
 import os
@@ -18,6 +18,7 @@ load_dotenv()
 # Config directory
 CONFIG_DIR = Path.home() / ".aidw"
 CONFIG_FILE = CONFIG_DIR / "config.yml"
+CREDENTIALS_FILE = CONFIG_DIR / "credentials"
 DB_FILE = CONFIG_DIR / "sessions.db"
 
 
@@ -70,6 +71,36 @@ def load_config_file() -> dict:
         return yaml.safe_load(f) or {}
 
 
+def load_credentials_file() -> dict[str, str]:
+    """Load credentials from file."""
+    if not CREDENTIALS_FILE.exists():
+        return {}
+
+    creds = {}
+    with open(CREDENTIALS_FILE) as f:
+        for line in f:
+            line = line.strip()
+            if line and "=" in line:
+                key, value = line.split("=", 1)
+                creds[key.strip()] = value.strip()
+    return creds
+
+
+def get_credential(key: str) -> str:
+    """Get a credential by key.
+
+    Checks in order: environment variable → credentials file.
+    """
+    # Check environment first
+    value = os.getenv(key)
+    if value:
+        return value
+
+    # Check credentials file
+    creds = load_credentials_file()
+    return creds.get(key, "")
+
+
 def ensure_config_dir() -> None:
     """Ensure config directory exists."""
     CONFIG_DIR.mkdir(parents=True, exist_ok=True)
@@ -112,11 +143,11 @@ def get_settings() -> Settings:
     github_config = GitHubConfig(**config_data.get("github", {}))
     auth_config = AuthConfig(**config_data.get("auth", {}))
 
-    # Get credentials from environment
+    # Get credentials from environment or credentials file
     settings = Settings(
-        webhook_secret=os.getenv("AIDW_WEBHOOK_SECRET", ""),
-        e2b_api_key=os.getenv("E2B_API_KEY", ""),
-        gh_token=os.getenv("GH_TOKEN", ""),
+        webhook_secret=get_credential("AIDW_WEBHOOK_SECRET"),
+        e2b_api_key=get_credential("E2B_API_KEY"),
+        gh_token=get_credential("GH_TOKEN"),
         server=server_config,
         github=github_config,
         auth=auth_config,

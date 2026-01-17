@@ -40,27 +40,11 @@ uv tool upgrade aidw
 
 ## Configure
 
-Create `~/.aidw/config.yml`:
-
-```yaml
-server:
-  port: 8787
-
-github:
-  bot_name: aidw
-
-auth:
-  allowed_users:
-    - "YourGitHubUsername"
-```
-
-Set credentials:
-
 ```bash
-export AIDW_WEBHOOK_SECRET="..."  # GitHub webhook secret
-export E2B_API_KEY="..."          # e2b.dev API key
-export GH_TOKEN="..."             # GitHub PAT with repo scope
+aidw config
 ```
+
+Prompts for credentials and allowed GitHub usernames. Saves to `~/.aidw/`.
 
 ## Run
 
