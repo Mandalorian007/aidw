@@ -125,6 +125,9 @@ class BaseCommand(ABC):
                         sandbox_id=instance.sandbox_id,
                         branch=branch,
                     )
+                    # Update in-memory session object
+                    session.sandbox_id = instance.sandbox_id
+                    session.branch = branch
 
                     try:
                         # Create new branch if needed (for plan/oneshot)
