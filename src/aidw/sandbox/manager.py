@@ -65,6 +65,9 @@ class SandboxManager:
         )
 
         try:
+            # Install tools (aitk, etc.)
+            await self._install_tools(instance)
+
             # Sync Claude auth
             if config.claude_auth_path:
                 await self._sync_claude_auth(instance, config.claude_auth_path)
@@ -82,6 +85,20 @@ class SandboxManager:
             logger.error(f"Failed to initialize sandbox: {e}")
             await self.kill_sandbox(instance)
             raise
+
+    async def _install_tools(self, instance: SandboxInstance) -> None:
+        """Install development tools in the sandbox."""
+        logger.info("Installing tools in sandbox...")
+
+        # Install aitk CLI
+        result = instance.sandbox.commands.run(
+            "pip install git+https://github.com/Mandalorian007/aitk",
+            timeout=120,
+        )
+        if result.exit_code != 0:
+            logger.warning(f"Failed to install aitk: {result.stderr}")
+        else:
+            logger.info("aitk installed successfully")
 
     async def _sync_claude_auth(self, instance: SandboxInstance, auth_path: Path) -> None:
         """Sync Claude authentication to sandbox."""
