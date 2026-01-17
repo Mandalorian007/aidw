@@ -57,9 +57,7 @@ class PlanCommand(BaseCommand):
         if not result.success:
             raise RuntimeError(f"Claude Code failed: {result.error}")
 
-        logger.info(f"Claude Code output: {result.output[:1000] if result.output else 'No output'}")
-        # Also print to console for debugging
-        print(f"Claude Code output: {result.output[:2000] if result.output else 'No output'}")
+        logger.info(f"Claude Code completed. Output length: {len(result.output) if result.output else 0}")
 
         # Commit any uncommitted changes (Claude may have already committed)
         await executor.commit_changes(f"Add implementation plan for issue #{context.issue.number}")
