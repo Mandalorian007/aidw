@@ -51,10 +51,10 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    # Credentials from environment
-    webhook_secret: str = Field(default="", alias="AIDW_WEBHOOK_SECRET")
-    e2b_api_key: str = Field(default="", alias="E2B_API_KEY")
-    gh_token: str = Field(default="", alias="GH_TOKEN")
+    # Credentials (loaded via get_credential)
+    webhook_secret: str = Field(default="")
+    e2b_api_key: str = Field(default="")
+    gh_token: str = Field(default="")
 
     # Nested configs (loaded from file)
     server: ServerConfig = Field(default_factory=ServerConfig)
