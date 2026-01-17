@@ -55,6 +55,7 @@ class Settings(BaseSettings):
     webhook_secret: str = Field(default="")
     e2b_api_key: str = Field(default="")
     gh_token: str = Field(default="")
+    claude_token: str = Field(default="")  # Long-lived Claude Code token
 
     # Nested configs (loaded from file)
     server: ServerConfig = Field(default_factory=ServerConfig)
@@ -148,6 +149,7 @@ def get_settings() -> Settings:
         webhook_secret=get_credential("AIDW_WEBHOOK_SECRET"),
         e2b_api_key=get_credential("E2B_API_KEY"),
         gh_token=get_credential("GH_TOKEN"),
+        claude_token=get_credential("CLAUDE_CODE_TOKEN"),
         server=server_config,
         github=github_config,
         auth=auth_config,

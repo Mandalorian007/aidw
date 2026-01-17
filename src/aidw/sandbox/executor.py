@@ -26,8 +26,44 @@ class ExecutionResult:
 class SandboxExecutor:
     """Executes Claude Code in a sandbox."""
 
-    def __init__(self, instance: SandboxInstance):
+    def __init__(self, instance: SandboxInstance, claude_token: str = ""):
         self.instance = instance
+        self.claude_token = claude_token
+        self._claude_installed = False
+
+    async def _ensure_claude_installed(self) -> None:
+        """Ensure Claude Code is installed in the sandbox."""
+        if self._claude_installed:
+            return
+
+        # Check if claude is already available
+        try:
+            check = self.instance.sandbox.commands.run(
+                "which claude",
+                timeout=30,
+            )
+            if check.exit_code == 0:
+                self._claude_installed = True
+                logger.info("Claude Code already installed")
+                return
+        except Exception:
+            # which returns non-zero when not found, which may raise
+            pass
+
+        # Install Claude Code via npm
+        logger.info("Installing Claude Code in sandbox...")
+        try:
+            result = self.instance.sandbox.commands.run(
+                "sudo npm install -g @anthropic-ai/claude-code",
+                timeout=300,
+            )
+            if result.exit_code != 0:
+                raise RuntimeError(f"Failed to install Claude Code: {result.stderr}")
+        except Exception as e:
+            raise RuntimeError(f"Failed to install Claude Code: {e}")
+
+        self._claude_installed = True
+        logger.info("Claude Code installed successfully")
 
     async def run_claude(
         self,
@@ -48,13 +84,22 @@ class SandboxExecutor:
         if working_dir is None:
             working_dir = self.instance.repo_path
 
-        # Build the command
-        # Use -p for non-interactive mode and --output-format json for structured output
-        escaped_prompt = prompt.replace('"', '\\"').replace("$", "\\$")
-        command = f'cd {working_dir} && claude -p "{escaped_prompt}" --output-format json'
+        # Ensure Claude Code is installed
+        await self._ensure_claude_installed()
+
+        # Write prompt to a file to avoid shell escaping issues
+        prompt_file = "/tmp/claude_prompt.txt"
+        self.instance.sandbox.files.write(prompt_file, prompt)
+
+        # Build the command - read prompt from file
+        # Set auth token via environment variable if available
+        env_prefix = ""
+        if self.claude_token:
+            env_prefix = f"ANTHROPIC_API_KEY={self.claude_token} "
+        command = f'cd {working_dir} && {env_prefix}claude -p "$(cat {prompt_file})" --output-format json'
 
         logger.info("Running Claude Code in sandbox")
-        logger.debug(f"Command: {command[:200]}...")
+        logger.debug(f"Prompt length: {len(prompt)} chars")
 
         try:
             # Run with extended timeout
@@ -71,11 +116,12 @@ class SandboxExecutor:
 
             if result.exit_code != 0:
                 logger.error(f"Claude Code failed with exit code {result.exit_code}")
+                logger.error(f"Stdout: {output}")
                 logger.error(f"Stderr: {error}")
                 return ExecutionResult(
                     success=False,
                     output=output,
-                    error=error or f"Exit code: {result.exit_code}",
+                    error=error or output or f"Exit code: {result.exit_code}",
                     exit_code=result.exit_code,
                 )
 
@@ -87,11 +133,14 @@ class SandboxExecutor:
             )
 
         except Exception as e:
-            logger.exception(f"Error running Claude Code: {e}")
+            # E2B raises exceptions for non-zero exit codes
+            # Try to extract useful info from the exception
+            error_msg = str(e)
+            logger.error(f"Claude Code execution error: {error_msg}")
             return ExecutionResult(
                 success=False,
                 output="",
-                error=str(e),
+                error=error_msg,
                 exit_code=-1,
             )
 

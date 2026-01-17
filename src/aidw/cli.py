@@ -40,6 +40,7 @@ def config() -> None:
       AIDW_WEBHOOK_SECRET  GitHub webhook signature secret
       E2B_API_KEY          E2B sandbox API key
       GH_TOKEN             GitHub PAT with repo scope
+      CLAUDE_CODE_TOKEN    Long-lived Claude token (run: claude setup-token)
 
     \b
     Also configures allowed GitHub usernames in ~/.aidw/config.yml
@@ -54,6 +55,7 @@ def config() -> None:
         ("AIDW_WEBHOOK_SECRET", "webhook secret"),
         ("E2B_API_KEY", "E2B API key"),
         ("GH_TOKEN", "GitHub token"),
+        ("CLAUDE_CODE_TOKEN", "Claude token (from: claude setup-token)"),
     ]:
         existing = get_credential(key)
         prompt_text = f"{key} ({description})"

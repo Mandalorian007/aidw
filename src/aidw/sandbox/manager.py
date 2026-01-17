@@ -54,7 +54,7 @@ class SandboxManager:
         logger.info(f"Creating sandbox for {config.repo_url}")
 
         # Create sandbox
-        sandbox = Sandbox(api_key=self.api_key, timeout=SANDBOX_TIMEOUT)
+        sandbox = Sandbox.create(api_key=self.api_key, timeout=SANDBOX_TIMEOUT)
         sandbox_id = sandbox.sandbox_id
 
         logger.info(f"Sandbox created: {sandbox_id}")
@@ -222,7 +222,7 @@ class SandboxManager:
     async def reconnect(self, sandbox_id: str) -> SandboxInstance | None:
         """Reconnect to an existing sandbox."""
         try:
-            sandbox = Sandbox.reconnect(sandbox_id, api_key=self.api_key)
+            sandbox = Sandbox.connect(sandbox_id, api_key=self.api_key)
             return SandboxInstance(
                 sandbox=sandbox,
                 sandbox_id=sandbox_id,

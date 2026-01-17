@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from aidw.database import Database, Session, SessionStatus
-from aidw.env import ensure_config_dir
+from aidw.env import ensure_config_dir, get_settings
 from aidw.github import GitHubClient, ContextBuilder
 from aidw.github.context import PromptRenderer, TriggerInfo, GitState, WorkflowContext
 from aidw.github.progress import ProgressReporter, ProgressTracker, ProgressStep, StepStatus
@@ -72,7 +72,8 @@ class BaseCommand(ABC):
                 )
 
                 # Add reaction to indicate we received the command
-                await github.add_reaction(cmd.repo, cmd.comment_id, "eyes")
+                if cmd.comment_id:
+                    await github.add_reaction(cmd.repo, cmd.comment_id, "eyes")
 
                 # Set up progress tracking
                 tracker = ProgressTracker(
@@ -140,8 +141,9 @@ class BaseCommand(ABC):
                             diff_stat=git_state_dict["diff_stat"],
                         )
 
-                        # Create executor
-                        executor = SandboxExecutor(instance)
+                        # Create executor with Claude token
+                        settings = get_settings()
+                        executor = SandboxExecutor(instance, claude_token=settings.claude_token)
 
                         # Run command-specific workflow
                         result = await self.run_workflow(
@@ -161,7 +163,8 @@ class BaseCommand(ABC):
                         await progress.complete(result.get("pr_url"))
 
                         # Add success reaction
-                        await github.add_reaction(cmd.repo, cmd.comment_id, "rocket")
+                        if cmd.comment_id:
+                            await github.add_reaction(cmd.repo, cmd.comment_id, "rocket")
 
                     finally:
                         await self.sandbox_manager.kill_sandbox(instance)
@@ -176,7 +179,8 @@ class BaseCommand(ABC):
                     await progress.fail(str(e))
 
                     # Add failure reaction
-                    await github.add_reaction(cmd.repo, cmd.comment_id, "confused")
+                    if cmd.comment_id:
+                        await github.add_reaction(cmd.repo, cmd.comment_id, "confused")
 
         finally:
             await self.db.close()
