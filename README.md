@@ -40,11 +40,29 @@ uv tool upgrade aidw
 
 ## Configure
 
+### 1. Generate Claude Code Token
+
+Claude Code needs a long-lived token for sandbox execution:
+
+```bash
+claude setup-token
+```
+
+Follow the prompts to authenticate and copy the generated token.
+
+### 2. Run Configuration
+
 ```bash
 aidw config
 ```
 
 Prompts for credentials and allowed GitHub usernames. Saves to `~/.aidw/`.
+
+**Required credentials:**
+- `AIDW_WEBHOOK_SECRET` - GitHub webhook signature secret
+- `E2B_API_KEY` - Get from [e2b.dev/dashboard/keys](https://e2b.dev/dashboard/keys)
+- `GH_TOKEN` - GitHub PAT with `repo` scope
+- `CLAUDE_CODE_TOKEN` - From `claude setup-token` above
 
 ## Run
 
@@ -82,9 +100,9 @@ Each workflow runs in an isolated [E2B](https://e2b.dev) sandbox with Claude Cod
 ## Requirements
 
 - Python 3.11+
-- [E2B](https://e2b.dev) account
-- GitHub PAT with `repo` scope
-- Claude Code subscription (uses `~/.claude` auth)
+- [E2B](https://e2b.dev) account for isolated sandbox execution
+- GitHub PAT with `repo` scope for repo/PR operations
+- Claude Code subscription with a setup token (run `claude setup-token`)
 
 ## License
 

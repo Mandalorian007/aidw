@@ -93,9 +93,10 @@ class SandboxExecutor:
 
         # Build the command - read prompt from file
         # Set auth token via environment variable if available
+        # Use CLAUDE_CODE_OAUTH_TOKEN for subscription auth (from `claude setup-token`)
         env_prefix = ""
         if self.claude_token:
-            env_prefix = f"ANTHROPIC_API_KEY={self.claude_token} "
+            env_prefix = f"CLAUDE_CODE_OAUTH_TOKEN={self.claude_token} "
         command = f'cd {working_dir} && {env_prefix}claude -p "$(cat {prompt_file})" --output-format json'
 
         logger.info("Running Claude Code in sandbox")
@@ -133,15 +134,25 @@ class SandboxExecutor:
             )
 
         except Exception as e:
-            # E2B raises exceptions for non-zero exit codes
-            # Try to extract useful info from the exception
+            # E2B raises CommandExitException for non-zero exit codes
+            # Extract stdout/stderr from the exception if available
             error_msg = str(e)
+            stdout = getattr(e, 'stdout', '') or ''
+            stderr = getattr(e, 'stderr', '') or ''
+            exit_code = getattr(e, 'exit_code', -1)
+
             logger.error(f"Claude Code execution error: {error_msg}")
+            logger.error(f"Exit code: {exit_code}")
+            logger.error(f"Stdout: {stdout}")
+            logger.error(f"Stderr: {stderr}")
+
+            # Combine all available error info
+            full_error = stderr or stdout or error_msg
             return ExecutionResult(
                 success=False,
-                output="",
-                error=error_msg,
-                exit_code=-1,
+                output=stdout,
+                error=full_error,
+                exit_code=exit_code,
             )
 
     async def run_claude_with_context(

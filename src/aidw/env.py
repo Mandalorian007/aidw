@@ -169,5 +169,7 @@ def validate_required_credentials() -> list[str]:
         missing.append("E2B_API_KEY")
     if not settings.gh_token:
         missing.append("GH_TOKEN")
+    if not settings.claude_token:
+        missing.append("CLAUDE_CODE_TOKEN (run: claude setup-token)")
 
     return missing
