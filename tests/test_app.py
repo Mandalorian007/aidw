@@ -25,8 +25,24 @@ def test_health_endpoint():
 
 
 def test_goodbye_endpoint():
-    """Test the goodbye endpoint."""
+    """Test the goodbye endpoint with default behavior."""
     response = client.get("/goodbye")
     assert response.status_code == 200
     data = response.json()
     assert data == {"message": "Goodbye, World!"}
+
+
+def test_goodbye_endpoint_with_name():
+    """Test the goodbye endpoint with a custom name parameter."""
+    response = client.get("/goodbye?name=Alice")
+    assert response.status_code == 200
+    data = response.json()
+    assert data == {"message": "Goodbye, Alice!"}
+
+
+def test_goodbye_endpoint_with_encoded_name():
+    """Test the goodbye endpoint with URL-encoded name."""
+    response = client.get("/goodbye?name=John%20Doe")
+    assert response.status_code == 200
+    data = response.json()
+    assert data == {"message": "Goodbye, John Doe!"}

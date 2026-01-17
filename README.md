@@ -121,7 +121,7 @@ Each workflow runs in an isolated [E2B](https://e2b.dev) sandbox with Claude Cod
 |----------|--------|-------------|
 | `/` | GET | Health check (returns status and version) |
 | `/health` | GET | Health check (returns status) |
-| `/goodbye` | GET | Returns `{"message": "Goodbye, World!"}` |
+| `/goodbye` | GET | Returns goodbye message. Optional `name` parameter for customization (e.g., `/goodbye?name=Alice`) |
 | `/webhook` | POST | GitHub webhook handler |
 
 ## Requirements

@@ -64,8 +64,10 @@ async def health():
 
 
 @app.get("/goodbye")
-async def goodbye():
-    """Goodbye endpoint."""
+async def goodbye(name: str | None = None):
+    """Goodbye endpoint with optional name parameter."""
+    if name:
+        return {"message": f"Goodbye, {name}!"}
     return {"message": "Goodbye, World!"}
 
 
