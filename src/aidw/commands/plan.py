@@ -68,6 +68,9 @@ class PlanCommand(BaseCommand):
         await self._update_step(tracker, progress, 2, StepStatus.RUNNING)
         start = time.time()
 
+        # Push branch first (required before creating PR)
+        await self.sandbox_manager.push_changes(executor.instance, session.branch)
+
         # Create PR
         pr_body = f"""## Implementation Plan for #{context.issue.number}
 
