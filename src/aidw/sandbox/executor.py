@@ -94,10 +94,11 @@ class SandboxExecutor:
         # Build the command - read prompt from file
         # Set auth token via environment variable if available
         # Use CLAUDE_CODE_OAUTH_TOKEN for subscription auth (from `claude setup-token`)
+        # Use --dangerously-skip-permissions since we're in an isolated sandbox
         env_prefix = ""
         if self.claude_token:
             env_prefix = f"CLAUDE_CODE_OAUTH_TOKEN={self.claude_token} "
-        command = f'cd {working_dir} && {env_prefix}claude -p "$(cat {prompt_file})" --output-format json'
+        command = f'cd {working_dir} && {env_prefix}claude -p "$(cat {prompt_file})" --output-format json --dangerously-skip-permissions'
 
         logger.info("Running Claude Code in sandbox")
         logger.debug(f"Prompt length: {len(prompt)} chars")
