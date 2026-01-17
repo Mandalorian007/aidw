@@ -9,6 +9,7 @@ from aidw import __version__
 from aidw.env import (
     get_settings,
     get_credential,
+    load_credentials_file,
     validate_required_credentials,
     create_default_config,
     ensure_config_dir,
@@ -29,7 +30,8 @@ def cli() -> None:
 
 
 @cli.command()
-def config() -> None:
+@click.option("--set", "set_credential", help="Set a single credential (KEY=VALUE)")
+def config(set_credential: str | None) -> None:
     """Configure API credentials and settings.
 
     Prompts for each credential and saves to ~/.aidw/credentials.
@@ -43,13 +45,36 @@ def config() -> None:
       CLAUDE_CODE_TOKEN    Long-lived Claude token (run: claude setup-token)
 
     \b
+    Set a single credential:
+      aidw config --set CLAUDE_CODE_TOKEN=<token>
+
+    \b
     Also configures allowed GitHub usernames in ~/.aidw/config.yml
     """
     import yaml
 
     ensure_config_dir()
 
-    # Collect credentials
+    # Handle --set option for single credential
+    if set_credential:
+        if "=" not in set_credential:
+            click.secho("Error: Use format KEY=VALUE", fg="red")
+            sys.exit(1)
+        key, value = set_credential.split("=", 1)
+        key = key.strip()
+
+        # Load existing credentials and update
+        creds = load_credentials_file()
+        creds[key] = value.strip()
+
+        with open(CREDENTIALS_FILE, "w") as f:
+            for k, v in creds.items():
+                f.write(f"{k}={v}\n")
+        CREDENTIALS_FILE.chmod(0o600)
+        click.echo(f"Set {key} in {CREDENTIALS_FILE}")
+        return
+
+    # Interactive mode - collect all credentials
     creds = {}
     for key, description in [
         ("AIDW_WEBHOOK_SECRET", "webhook secret"),

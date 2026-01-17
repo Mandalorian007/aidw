@@ -40,29 +40,47 @@ uv tool upgrade aidw
 
 ## Configure
 
-### 1. Generate Claude Code Token
-
-Claude Code needs a long-lived token for sandbox execution:
-
-```bash
-claude setup-token
-```
-
-Follow the prompts to authenticate and copy the generated token.
-
-### 2. Run Configuration
+### Quick Setup
 
 ```bash
 aidw config
 ```
 
-Prompts for credentials and allowed GitHub usernames. Saves to `~/.aidw/`.
+Prompts for all credentials interactively. Press Enter to keep existing values.
 
-**Required credentials:**
-- `AIDW_WEBHOOK_SECRET` - GitHub webhook signature secret
-- `E2B_API_KEY` - Get from [e2b.dev/dashboard/keys](https://e2b.dev/dashboard/keys)
-- `GH_TOKEN` - GitHub PAT with `repo` scope
-- `CLAUDE_CODE_TOKEN` - From `claude setup-token` above
+### Set a Single Credential
+
+```bash
+aidw config --set KEY=VALUE
+```
+
+Example:
+```bash
+aidw config --set CLAUDE_CODE_TOKEN=your-token-here
+```
+
+### Required Credentials
+
+| Credential | Description | How to get |
+|------------|-------------|------------|
+| `AIDW_WEBHOOK_SECRET` | GitHub webhook signature | Generate any secret string |
+| `E2B_API_KEY` | Sandbox API key | [e2b.dev/dashboard/keys](https://e2b.dev/dashboard/keys) |
+| `GH_TOKEN` | GitHub PAT | GitHub Settings → Developer settings → PATs (needs `repo` scope) |
+| `CLAUDE_CODE_TOKEN` | Claude auth token | Run `claude setup-token` and copy the output |
+
+### Claude Code Token
+
+Claude Code needs a long-lived token to run in the sandbox:
+
+```bash
+claude setup-token
+```
+
+Follow the browser prompts, then set the token:
+
+```bash
+aidw config --set CLAUDE_CODE_TOKEN=<paste-token-here>
+```
 
 ## Run
 
