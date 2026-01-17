@@ -57,8 +57,14 @@ class PlanCommand(BaseCommand):
         if not result.success:
             raise RuntimeError(f"Claude Code failed: {result.error}")
 
+        logger.info(f"Claude Code output: {result.output[:500] if result.output else 'No output'}")
+
         # Commit changes
-        await executor.commit_changes(f"Add implementation plan for issue #{context.issue.number}")
+        commit_result = await executor.commit_changes(f"Add implementation plan for issue #{context.issue.number}")
+
+        # Verify changes were made (plan command should always create PLAN.md)
+        if commit_result.output == "No changes to commit":
+            raise RuntimeError("Claude Code completed but no files were created. Check the prompt or Claude output.")
 
         await self._update_step(
             tracker, progress, 1, StepStatus.COMPLETED, int(time.time() - start)
