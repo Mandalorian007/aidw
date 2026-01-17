@@ -125,8 +125,8 @@ class PromptRenderer:
 
     def __init__(self, prompts_dir: Path | None = None):
         if prompts_dir is None:
-            # Default to prompts/ in the package
-            prompts_dir = Path(__file__).parent.parent.parent.parent / "prompts"
+            # Default to prompts/ inside the aidw package
+            prompts_dir = Path(__file__).parent.parent / "prompts"
 
         self.env = Environment(
             loader=FileSystemLoader(str(prompts_dir)),
