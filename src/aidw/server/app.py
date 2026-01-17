@@ -63,6 +63,12 @@ async def health():
     return {"status": "healthy"}
 
 
+@app.get("/goodbye")
+async def goodbye():
+    """Goodbye endpoint."""
+    return {"message": "Goodbye, World!"}
+
+
 async def process_command(cmd: ParsedCommand) -> None:
     """Process a parsed command in the background."""
     from aidw.commands import (

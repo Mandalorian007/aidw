@@ -115,6 +115,15 @@ GitHub Webhook
 
 Each workflow runs in an isolated [E2B](https://e2b.dev) sandbox with Claude Code. Changes are committed and pushed directly from the sandbox.
 
+## API Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/` | GET | Health check (returns status and version) |
+| `/health` | GET | Health check (returns status) |
+| `/goodbye` | GET | Returns `{"message": "Goodbye, World!"}` |
+| `/webhook` | POST | GitHub webhook handler |
+
 ## Requirements
 
 - Python 3.11+
