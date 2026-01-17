@@ -71,6 +71,9 @@ class OneshotCommand(BaseCommand):
         await self._update_step(tracker, progress, 5, StepStatus.RUNNING)
         start = time.time()
 
+        # Push branch first (required before creating PR)
+        await self.sandbox_manager.push_changes(executor.instance, session.branch)
+
         # Create PR
         pr_body = f"""## Closes #{context.issue.number}
 
