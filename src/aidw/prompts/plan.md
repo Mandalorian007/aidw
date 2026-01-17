@@ -11,5 +11,3 @@ Output a PLAN.md file with:
 4. **Documentation** - What needs to be documented
 
 Be specific and actionable. This plan will be reviewed before implementation.
-
-After creating PLAN.md, commit it with message "Add implementation plan for issue #{{ issue.number }}".
