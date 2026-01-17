@@ -90,15 +90,27 @@ class SandboxManager:
         """Install development tools in the sandbox."""
         logger.info("Installing tools in sandbox...")
 
-        # Install aitk CLI
-        result = instance.sandbox.commands.run(
-            "pip install git+https://github.com/Mandalorian007/aitk",
-            timeout=120,
-        )
+        # Check if uv is available (preferred), otherwise fall back to pip
+        uv_check = instance.sandbox.commands.run("which uv", timeout=10)
+        use_uv = uv_check.exit_code == 0
+
+        if use_uv:
+            # Use uv tool install for isolated installation
+            result = instance.sandbox.commands.run(
+                "uv tool install git+https://github.com/Mandalorian007/aitk",
+                timeout=120,
+            )
+        else:
+            # Fall back to pip (installs into global environment)
+            result = instance.sandbox.commands.run(
+                "pip install git+https://github.com/Mandalorian007/aitk",
+                timeout=120,
+            )
+
         if result.exit_code != 0:
             logger.warning(f"Failed to install aitk: {result.stderr}")
         else:
-            logger.info("aitk installed successfully")
+            logger.info(f"aitk installed successfully via {'uv' if use_uv else 'pip'}")
 
     async def _sync_claude_auth(self, instance: SandboxInstance, auth_path: Path) -> None:
         """Sync Claude authentication to sandbox."""
