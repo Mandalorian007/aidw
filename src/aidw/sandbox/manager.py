@@ -112,6 +112,27 @@ class SandboxManager:
         else:
             logger.info(f"aitk installed successfully via {'uv' if use_uv else 'pip'}")
 
+        # Sync aitk config for env store support
+        await self._sync_aitk_config(instance)
+
+    async def _sync_aitk_config(self, instance: SandboxInstance) -> None:
+        """Sync aitk configuration to sandbox for env store access."""
+        aitk_config = Path.home() / ".config/aitk/config"
+        if not aitk_config.exists():
+            logger.debug("No aitk config found, skipping env store setup")
+            return
+
+        try:
+            content = aitk_config.read_text()
+            # Create config directory in sandbox
+            instance.sandbox.commands.run("mkdir -p /home/user/.config/aitk")
+            instance.sandbox.files.write("/home/user/.config/aitk/config", content)
+            # Secure permissions
+            instance.sandbox.commands.run("chmod 600 /home/user/.config/aitk/config")
+            logger.info("aitk config synced to sandbox")
+        except Exception as e:
+            logger.warning(f"Failed to sync aitk config: {e}")
+
     async def _sync_claude_auth(self, instance: SandboxInstance, auth_path: Path) -> None:
         """Sync Claude authentication to sandbox."""
         logger.info("Syncing Claude authentication to sandbox")
@@ -163,6 +184,33 @@ class SandboxManager:
         instance.sandbox.commands.run(
             f'cd {instance.repo_path} && git config user.name "AIDW Bot"'
         )
+
+        # Pull env files from env store if configured
+        await self._pull_env_files(instance, config.repo_url)
+
+    async def _pull_env_files(self, instance: SandboxInstance, repo_url: str) -> None:
+        """Pull encrypted .env files from env store using aitk."""
+        # Extract owner/repo from URL (e.g., https://github.com/owner/repo.git)
+        import re
+
+        match = re.search(r"github\.com[/:]([^/]+)/([^/.]+)", repo_url)
+        if not match:
+            logger.debug(f"Could not extract owner/repo from {repo_url}")
+            return
+
+        owner_repo = f"{match.group(1)}/{match.group(2)}"
+        logger.info(f"Attempting to pull env files for {owner_repo}")
+
+        result = instance.sandbox.commands.run(
+            f"cd {instance.repo_path} && aitk env pull {owner_repo}",
+            timeout=60,
+        )
+
+        if result.exit_code != 0:
+            # Not an error - repo might not have env files in store
+            logger.debug(f"No env files pulled for {owner_repo}: {result.stderr}")
+        else:
+            logger.info(f"Pulled env files for {owner_repo}")
 
     async def _checkout_branch(self, instance: SandboxInstance, branch: str) -> None:
         """Checkout or create a branch."""
