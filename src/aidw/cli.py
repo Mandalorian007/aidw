@@ -273,6 +273,26 @@ def status(session_id: str) -> None:
 
 
 @cli.command()
+@click.argument("context", required=False, default="")
+def scope(context: str) -> None:
+    """Run autonomous scoping workflow.
+
+    Finds unscoped Notion tasks, analyzes relevant GitHub repos,
+    and posts scoping comments.
+
+    Optionally provide CONTEXT to guide the scoping focus.
+
+    \b
+    Examples:
+      aidw scope
+      aidw scope "Focus on authentication-related tasks"
+    """
+    from aidw.commands.scope import scope_command
+
+    asyncio.run(scope_command.execute(context))
+
+
+@cli.command()
 @click.option("--follow", "-f", is_flag=True, help="Follow log output")
 @click.option("--lines", "-n", default=50, help="Number of lines to show")
 def logs(follow: bool, lines: int) -> None:

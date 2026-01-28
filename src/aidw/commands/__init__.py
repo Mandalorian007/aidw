@@ -1,10 +1,11 @@
-"""AIDW Commands - The 5 workflow entry points."""
+"""AIDW Commands - Workflow entry points."""
 
 from aidw.commands.plan import plan_command
 from aidw.commands.refine import refine_command
 from aidw.commands.build import build_command
 from aidw.commands.oneshot import oneshot_command
 from aidw.commands.iterate import iterate_command
+from aidw.commands.scope import scope_command
 
 __all__ = [
     "plan_command",
@@ -12,4 +13,5 @@ __all__ = [
     "build_command",
     "oneshot_command",
     "iterate_command",
+    "scope_command",
 ]
