@@ -237,6 +237,18 @@ def run_iterate(repo: str, pr: int, instruction: str) -> None:
     asyncio.run(iterate_command.execute_manual(repo, pr, instruction))
 
 
+@run.command("codereview")
+@click.option("--repo", required=True, help="Repository (owner/repo)")
+@click.option("--pr", required=True, type=int, help="PR number")
+@click.option("--instruction", default="", help="Review focus or instruction")
+def run_codereview(repo: str, pr: int, instruction: str) -> None:
+    """Review a PR and post a comment with findings."""
+    from aidw.commands import codereview_command
+
+    click.echo(f"Running codereview for {repo}#{pr}")
+    asyncio.run(codereview_command.execute_manual(repo, pr, instruction))
+
+
 @cli.command()
 @click.argument("session_id")
 def status(session_id: str) -> None:

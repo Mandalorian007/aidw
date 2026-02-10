@@ -6,15 +6,20 @@ AI Dev Workflow — trigger AI workflows from GitHub issue/PR comments.
 
 ```
 Issue → @aidw plan → PR with PLAN.md → @aidw build → Code + Tests + Docs
+                                      → @aidw refine → Updated PLAN.md
+                                      → @aidw iterate → Updated Code
+                                      → @aidw codereview → Review Comment
+
+Issue → @aidw oneshot → PR with Code + Tests + Docs (all-in-one)
 ```
 
-Comment on any issue with `@aidw plan` and the bot will:
+Comment `@aidw plan` on any issue and the bot will:
 1. Spin up an isolated E2B sandbox
 2. Clone your repo
 3. Run Claude Code to analyze the issue and create a plan
 4. Push a branch and open a draft PR with `PLAN.md`
 
-Then iterate with `@aidw refine` or implement with `@aidw build`.
+Then refine the plan, implement it, or iterate on the result — all from PR comments.
 
 ## Commands
 
@@ -23,8 +28,9 @@ Then iterate with `@aidw refine` or implement with `@aidw build`.
 | `@aidw plan` | Issue | Create branch + PR with implementation plan |
 | `@aidw refine` | PR | Update plan based on feedback |
 | `@aidw build` | PR | Implement the plan (code + tests + docs) |
-| `@aidw oneshot` | Issue | Full automation in one shot |
 | `@aidw iterate` | PR | Refine implementation based on feedback |
+| `@aidw codereview` | PR | Analyze changes and post a review comment |
+| `@aidw oneshot` | Issue | Full automation in one shot |
 
 ## Install
 
@@ -54,19 +60,16 @@ Prompts for all credentials interactively. Press Enter to keep existing values.
 aidw config --set KEY=VALUE
 ```
 
-Example:
-```bash
-aidw config --set CLAUDE_CODE_TOKEN=your-token-here
-```
-
 ### Required Credentials
 
 | Credential | Description | How to get |
 |------------|-------------|------------|
-| `AIDW_WEBHOOK_SECRET` | GitHub webhook signature | Generate any secret string |
-| `E2B_API_KEY` | Sandbox API key | [e2b.dev/dashboard/keys](https://e2b.dev/dashboard/keys) |
-| `GH_TOKEN` | GitHub PAT | GitHub Settings → Developer settings → PATs (needs `repo` scope) |
-| `CLAUDE_CODE_TOKEN` | Claude auth token | Run `claude setup-token` and copy the output |
+| `AIDW_WEBHOOK_SECRET` | GitHub webhook signature secret | Generate any secret string |
+| `E2B_API_KEY` | E2B sandbox API key | [e2b.dev/dashboard/keys](https://e2b.dev/dashboard/keys) |
+| `GH_TOKEN` | GitHub PAT with `repo` scope | GitHub Settings > Developer settings > Personal access tokens |
+| `CLAUDE_CODE_TOKEN` | Long-lived Claude Code auth token | Run `claude setup-token` |
+
+Credentials are stored in `~/.config/aidw/credentials` with `600` permissions. Environment variables take precedence over the credentials file.
 
 ### Claude Code Token
 
@@ -74,15 +77,12 @@ Claude Code needs a long-lived token to run in the sandbox:
 
 ```bash
 claude setup-token
-```
-
-Follow the browser prompts, then set the token:
-
-```bash
 aidw config --set CLAUDE_CODE_TOKEN=<paste-token-here>
 ```
 
 ## Run
+
+### Webhook Server
 
 ```bash
 aidw server           # Start webhook server
@@ -91,13 +91,16 @@ aidw server --dev     # With auto-reload
 
 Expose with [Tailscale Funnel](https://tailscale.com/kb/1223/funnel) or ngrok, then configure your GitHub repo's webhook to point to `https://your-url/webhook`.
 
-## Manual Triggers
+### Manual Triggers
 
-For testing or CI:
+Run workflows directly from the CLI for testing or CI:
 
 ```bash
 aidw run plan --repo owner/repo --issue 123
 aidw run build --repo owner/repo --pr 124
+aidw run refine --repo owner/repo --pr 124 --instruction "simplify the approach"
+aidw run iterate --repo owner/repo --pr 124 --instruction "fix the failing test"
+aidw run codereview --repo owner/repo --pr 124 --instruction "focus on error handling"
 aidw run oneshot --repo owner/repo --issue 123
 ```
 
@@ -105,22 +108,23 @@ aidw run oneshot --repo owner/repo --issue 123
 
 ```
 GitHub Webhook
-       ↓
-  FastAPI Server ──→ SQLite (sessions)
-       ↓
+       |
+  FastAPI Server --> SQLite (sessions)
+       |
   E2B Sandbox
-       ↓
-  Claude Code ──→ git push ──→ GitHub PR
+       |
+  Claude Code --> git push --> GitHub PR
+              \-> AIDW_REVIEW.md --> GitHub Comment (codereview only)
 ```
 
-Each workflow runs in an isolated [E2B](https://e2b.dev) sandbox with Claude Code. Changes are committed and pushed directly from the sandbox.
+Each workflow runs in an isolated [E2B](https://e2b.dev) sandbox with full repo context. Changes are committed and pushed directly from the sandbox. The `codereview` command is read-only — it posts a review comment instead of pushing code.
 
 ## Requirements
 
 - Python 3.11+
-- [E2B](https://e2b.dev) account for isolated sandbox execution
-- GitHub PAT with `repo` scope for repo/PR operations
-- Claude Code subscription with a setup token (run `claude setup-token`)
+- [E2B](https://e2b.dev) account for sandbox execution
+- GitHub PAT with `repo` scope
+- Claude Code token (run `claude setup-token`)
 
 ## License
 

@@ -67,6 +67,7 @@ async def process_command(cmd: ParsedCommand) -> None:
     """Process a parsed command in the background."""
     from aidw.commands import (
         build_command,
+        codereview_command,
         iterate_command,
         oneshot_command,
         plan_command,
@@ -86,6 +87,8 @@ async def process_command(cmd: ParsedCommand) -> None:
             await oneshot_command.execute(cmd)
         elif cmd.command == "iterate":
             await iterate_command.execute(cmd)
+        elif cmd.command == "codereview":
+            await codereview_command.execute(cmd)
         else:
             logger.error(f"Unknown command: {cmd.command}")
     except Exception as e:

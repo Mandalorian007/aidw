@@ -22,6 +22,7 @@ class BaseCommand(ABC):
 
     command_name: str = ""
     prompt_template: str = ""
+    should_push: bool = True
 
     def __init__(self):
         self.db: Database | None = None
@@ -154,7 +155,8 @@ class BaseCommand(ABC):
                         )
 
                         # Push changes
-                        await self.sandbox_manager.push_changes(instance, branch)
+                        if self.should_push:
+                            await self.sandbox_manager.push_changes(instance, branch)
 
                         # Mark complete
                         await self.db.update_session(
