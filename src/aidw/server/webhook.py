@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 # Command pattern: @aidw <command> [instruction]
 COMMAND_PATTERN = re.compile(
-    r"@(\w+)\s+(plan|refine|build|oneshot|iterate)(?:\s+(.*))?",
+    r"@(\w+)\s+(plan|refine|build|oneshot|iterate|codereview)(?:\s+(.*))?",
     re.IGNORECASE | re.DOTALL,
 )
 
@@ -156,7 +156,7 @@ def validate_command_context(cmd: ParsedCommand) -> str | None:
             return f"`@aidw {cmd.command}` must be run from an issue, not a PR"
 
     # refine, build, iterate require a PR
-    if cmd.command in ("refine", "build", "iterate"):
+    if cmd.command in ("refine", "build", "iterate", "codereview"):
         if cmd.pr_number is None:
             return f"`@aidw {cmd.command}` must be run from a PR"
 
