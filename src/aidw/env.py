@@ -16,7 +16,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Config directory
-CONFIG_DIR = Path.home() / ".aidw"
+CONFIG_DIR = Path.home() / ".config" / "aidw"
 CONFIG_FILE = CONFIG_DIR / "config.yml"
 CREDENTIALS_FILE = CONFIG_DIR / "credentials"
 DB_FILE = CONFIG_DIR / "sessions.db"

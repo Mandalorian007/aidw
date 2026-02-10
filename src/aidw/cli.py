@@ -35,7 +35,7 @@ def cli() -> None:
 def config(set_credential: str | None) -> None:
     """Configure API credentials and settings.
 
-    Prompts for each credential and saves to ~/.aidw/credentials.
+    Prompts for each credential and saves to ~/.config/aidw/credentials.
     Press Enter to keep existing values. Credentials are stored with 600 permissions.
 
     \b
@@ -50,7 +50,7 @@ def config(set_credential: str | None) -> None:
       aidw config --set CLAUDE_CODE_TOKEN=<token>
 
     \b
-    Also configures allowed GitHub usernames in ~/.aidw/config.yml
+    Also configures allowed GitHub usernames in ~/.config/aidw/config.yml
     """
     import yaml
 
@@ -299,7 +299,7 @@ def logs(follow: bool, lines: int) -> None:
     """View server logs."""
     # For now, just echo that logs would be shown
     click.echo("Log viewing not yet implemented")
-    click.echo("Use: tail -f ~/.aidw/aidw.log")
+    click.echo("Use: tail -f ~/.config/aidw/aidw.log")
 
 
 if __name__ == "__main__":
