@@ -6,7 +6,7 @@ Create `aidw`, an outer loop AI system that triggers AI workflows from GitHub is
 
 **Core Concept:** Issue = Unit of Work → Branch → PR. All context flows automatically.
 
-## The 5 Commands
+## The 7 Commands
 
 | Command | Purpose | When to use | Output |
 |---------|---------|-------------|--------|
@@ -15,6 +15,8 @@ Create `aidw`, an outer loop AI system that triggers AI workflows from GitHub is
 | `@aidw build` | Implement from plan | Plan approved, ready to code | Code + tests + docs added to PR |
 | `@aidw oneshot` | Full automation | Straightforward issues | Branch + PR with everything |
 | `@aidw iterate` | Iterate on implementation | Feedback on code/tests/docs | Updated code + plan + tests + docs |
+| `@aidw codereview` | Analyze changes | PR review without modifications | Review comment with analysis |
+| `@aidw scope` | Scope from Notion | Internal/experimental workflow | Not user-facing |
 
 ## State Machine
 
@@ -29,13 +31,17 @@ ISSUE (no PR)
     │                              │
     │                              └── @aidw build ───► PR with code + tests + docs
     │                                                       │
-    │                                                       └── @aidw iterate ► Refine impl
-    │                                                               │
-    │                                                               └── (loop) @aidw iterate
+    │                                                       ├── @aidw iterate ► Refine impl
+    │                                                       │       │
+    │                                                       │       └── (loop) @aidw iterate
+    │                                                       │
+    │                                                       └── @aidw codereview ► Review comment
     │
     └── @aidw oneshot ─────► PR with code + plan + tests + docs
                                    │
-                                   └── @aidw iterate ► Refine impl
+                                   ├── @aidw iterate ► Refine impl
+                                   │
+                                   └── @aidw codereview ► Review comment
 ```
 
 ## Architecture
@@ -45,12 +51,17 @@ GitHub Webhook → FastAPI Server → Command Router → E2B Sandbox → GitHub 
                      ↓                                  ↓
                 SQLite DB                        Claude Code
                 (sessions)                    (runs in sandbox)
+                                                      ↓
+                                              git push (plan/build/oneshot/iterate)
+                                                 OR
+                                            AIDW_REVIEW.md → comment (codereview)
 ```
 
 **E2B Integration:**
 - Each workflow gets its own isolated E2B sandbox
 - Repo is cloned into sandbox, agent runs there
-- Changes pushed directly from sandbox to GitHub
+- Changes pushed directly from sandbox to GitHub (except codereview)
+- `codereview` is read-only: generates `AIDW_REVIEW.md` and posts as comment
 - Parallel execution without conflicts
 - Sandbox auto-terminates after completion
 
@@ -80,12 +91,14 @@ aidw/
 │   │   ├── webhook.py        # Event handling
 │   │   └── security.py       # Signature verification
 │   │
-│   ├── commands/             # The 5 entry points
+│   ├── commands/             # The 7 entry points
 │   │   ├── plan.py           # @aidw plan
 │   │   ├── refine.py         # @aidw refine
 │   │   ├── build.py          # @aidw build
 │   │   ├── oneshot.py        # @aidw oneshot
-│   │   └── iterate.py        # @aidw iterate
+│   │   ├── iterate.py        # @aidw iterate
+│   │   ├── codereview.py     # @aidw codereview
+│   │   └── scope.py          # @aidw scope (internal)
 │   │
 │   ├── sandbox/              # E2B sandbox management
 │   │   ├── __init__.py
@@ -110,7 +123,9 @@ aidw/
 │   ├── refine.md             # Iterate on plan
 │   ├── build.md              # Implement from plan
 │   ├── oneshot.md            # Full automation
-│   └── iterate.md            # Iterate on implementation
+│   ├── iterate.md            # Iterate on implementation
+│   ├── codereview.md         # PR code review
+│   └── scope.md              # Notion scoping (internal)
 │
 └── pyproject.toml
 ```
@@ -338,6 +353,13 @@ PR #124 (branch: aidw/issue-123)
 ├── src/...              # Implementation
 ├── tests/...            # Tests
 └── PR Description       # Summary linking to issue
+```
+
+After `@aidw codereview`, a comment is posted with the review (no code changes):
+
+```
+Comment on PR
+└── AIDW_REVIEW.md content # Analysis, suggestions, questions
 ```
 
 ## Progress Updates
