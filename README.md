@@ -89,6 +89,59 @@ aidw server           # Start webhook server
 aidw server --dev     # With auto-reload
 ```
 
+### Run as a Service (macOS)
+
+To keep the server running across reboots, use `launchd`:
+
+```bash
+# Create the plist (adjust paths if your setup differs)
+cat > ~/Library/LaunchAgents/com.aidw.server.plist << 'EOF'
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.aidw.server</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>$HOME/.local/bin/aidw</string>
+        <string>server</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>$HOME/.config/aidw/server.log</string>
+    <key>StandardErrorPath</key>
+    <string>$HOME/.config/aidw/server.log</string>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>$HOME/.local/bin:/usr/local/bin:/usr/bin:/bin</string>
+    </dict>
+</dict>
+</plist>
+EOF
+
+# Replace $HOME with your actual home directory
+sed -i '' "s|\$HOME|$HOME|g" ~/Library/LaunchAgents/com.aidw.server.plist
+
+# Load (starts immediately and on every reboot)
+launchctl load ~/Library/LaunchAgents/com.aidw.server.plist
+
+# Check status
+launchctl list | grep aidw
+
+# View logs
+tail -f ~/.config/aidw/server.log
+
+# Stop the service
+launchctl unload ~/Library/LaunchAgents/com.aidw.server.plist
+```
+
+The service auto-restarts if the process crashes (`KeepAlive: true`).
+
 ### Webhook Management
 
 Manage GitHub webhooks directly from the CLI:
