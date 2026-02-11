@@ -5,10 +5,10 @@ AI Dev Workflow — trigger AI workflows from GitHub issue/PR comments.
 ## How It Works
 
 ```
-Issue → @aidw plan → PR with PLAN.md → @aidw build → Code + Tests + Docs
-                                      → @aidw refine → Updated PLAN.md
-                                      → @aidw iterate → Updated Code
-                                      → @aidw codereview → Review Comment
+Issue → @aidw plan → PR with docs/plans/{slug}.md → @aidw build → Code + Tests + Docs
+                                                  → @aidw refine → Updated plan
+                                                  → @aidw iterate → Updated Code
+                                                  → @aidw codereview → Review Comment
 
 Issue → @aidw oneshot → PR with Code + Tests + Docs (all-in-one)
 ```
@@ -17,7 +17,7 @@ Comment `@aidw plan` on any issue and the bot will:
 1. Spin up an isolated E2B sandbox
 2. Clone your repo
 3. Run Claude Code to analyze the issue and create a plan
-4. Push a branch and open a draft PR with `PLAN.md`
+4. Push a branch and open a draft PR with the plan in `docs/plans/`
 
 Then refine the plan, implement it, or iterate on the result — all from PR comments.
 

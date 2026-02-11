@@ -37,6 +37,9 @@ class IterateCommand(BaseCommand):
         tracker: ProgressTracker,
     ) -> dict[str, Any]:
         """Iterate on the implementation."""
+        # Compute plan path from issue title
+        context.plan_path = self._get_plan_path(context)
+
         # Step 1: Analyze feedback
         await self._update_step(tracker, progress, 0, StepStatus.RUNNING)
         start = time.time()

@@ -38,14 +38,17 @@ class BuildCommand(BaseCommand):
         tracker: ProgressTracker,
     ) -> dict[str, Any]:
         """Build the implementation from the plan."""
+        # Compute plan path from issue title
+        context.plan_path = self._get_plan_path(context)
+
         # Step 1: Read plan
         await self._update_step(tracker, progress, 0, StepStatus.RUNNING)
         start = time.time()
 
-        # Check PLAN.md exists
-        plan_exists = await executor.file_exists("PLAN.md")
+        # Check plan file exists
+        plan_exists = await executor.file_exists(context.plan_path)
         if not plan_exists:
-            raise RuntimeError("PLAN.md not found. Run `@aidw plan` first.")
+            raise RuntimeError(f"{context.plan_path} not found. Run `@aidw plan` first.")
 
         # Render prompt
         prompt = await self._render_prompt(context)
@@ -85,7 +88,7 @@ class BuildCommand(BaseCommand):
 This PR implements issue #{context.issue.number}: {context.issue.title}
 
 **Artifacts:**
-- `PLAN.md` - Implementation plan
+- [`{context.plan_path}`]({context.plan_path}) - Implementation plan
 - Implementation code
 - Tests
 - Documentation updates

@@ -5,7 +5,7 @@
 Fully implement this issue from start to finish.
 
 Steps:
-1. Create PLAN.md with your implementation approach
+1. Create `{{ plan_path }}` with your implementation approach (create the `docs/plans/` directory if needed)
 2. Implement the solution with clean, idiomatic code
 3. Add tests that verify the implementation
 4. Update or create documentation as needed

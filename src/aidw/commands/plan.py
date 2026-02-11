@@ -36,6 +36,9 @@ class PlanCommand(BaseCommand):
         tracker: ProgressTracker,
     ) -> dict[str, Any]:
         """Create a plan and PR."""
+        # Compute plan path from issue title
+        context.plan_path = self._get_plan_path(context)
+
         # Step 1: Analyze issue
         await self._update_step(tracker, progress, 0, StepStatus.RUNNING)
         start = time.time()
@@ -62,9 +65,9 @@ class PlanCommand(BaseCommand):
         # Commit any uncommitted changes (Claude may have already committed)
         await executor.commit_changes(f"Add implementation plan for issue #{context.issue.number}")
 
-        # Verify PLAN.md was created
-        if not await executor.file_exists("PLAN.md"):
-            raise RuntimeError("Claude Code completed but PLAN.md was not created. Check the Claude output.")
+        # Verify plan file was created
+        if not await executor.file_exists(context.plan_path):
+            raise RuntimeError(f"Claude Code completed but {context.plan_path} was not created. Check the Claude output.")
 
         await self._update_step(
             tracker, progress, 1, StepStatus.COMPLETED, int(time.time() - start)
@@ -88,7 +91,7 @@ class PlanCommand(BaseCommand):
 This PR contains an implementation plan for issue #{context.issue.number}: {context.issue.title}
 
 **Next steps:**
-- Review the PLAN.md file
+- Review the [`{context.plan_path}`]({context.plan_path}) file
 - Comment `@aidw refine <feedback>` to iterate on the plan
 - Comment `@aidw build` when ready to implement
 

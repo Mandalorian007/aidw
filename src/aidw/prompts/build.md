@@ -2,7 +2,7 @@
 
 ---
 
-Implement the plan in PLAN.md.
+Implement the plan in `{{ plan_path }}`.
 
 1. Read and follow the plan exactly
 2. Write clean, idiomatic code
@@ -11,4 +11,4 @@ Implement the plan in PLAN.md.
 
 Commit with clear messages. The PR description will be updated with implementation details.
 
-After implementing, update PLAN.md to mark completed items and note any deviations from the original plan.
+After implementing, update `{{ plan_path }}` to mark completed items and note any deviations from the original plan.

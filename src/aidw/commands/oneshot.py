@@ -39,6 +39,9 @@ class OneshotCommand(BaseCommand):
         tracker: ProgressTracker,
     ) -> dict[str, Any]:
         """Run the complete workflow."""
+        # Compute plan path from issue title
+        context.plan_path = self._get_plan_path(context)
+
         # Step 1: Analyze issue
         await self._update_step(tracker, progress, 0, StepStatus.RUNNING)
         start = time.time()
@@ -85,7 +88,7 @@ class OneshotCommand(BaseCommand):
 This PR fully implements issue #{context.issue.number}: {context.issue.title}
 
 **Artifacts:**
-- `PLAN.md` - Implementation plan
+- [`{context.plan_path}`]({context.plan_path}) - Implementation plan
 - Implementation code
 - Tests
 - Documentation updates
