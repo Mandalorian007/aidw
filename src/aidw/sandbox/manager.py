@@ -91,8 +91,11 @@ class SandboxManager:
         logger.info("Installing tools in sandbox...")
 
         # Check if uv is available (preferred), otherwise fall back to pip
-        uv_check = instance.sandbox.commands.run("which uv", timeout=10)
-        use_uv = uv_check.exit_code == 0
+        try:
+            instance.sandbox.commands.run("which uv", timeout=10)
+            use_uv = True
+        except Exception:
+            use_uv = False
 
         if use_uv:
             # Use uv tool install for isolated installation
