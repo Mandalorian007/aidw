@@ -382,7 +382,7 @@ class GitHubClient:
                 "events": events,
                 "config": {
                     "url": url,
-                    "content_type": "application/json",
+                    "content_type": "json",
                     "secret": secret,
                     "insecure_ssl": "0",
                 },
