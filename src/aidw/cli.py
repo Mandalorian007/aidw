@@ -269,6 +269,7 @@ def status(session_id: str) -> None:
     from aidw.database import Database
 
     async def _status() -> None:
+        """Fetch and display session details from database."""
         ensure_config_dir()
         db = Database()
         await db.connect()
@@ -318,7 +319,19 @@ def scope(context: str) -> None:
 
 
 async def _find_aidw_webhook(github, repo: str, webhook_url: str):
-    """Find an existing AIDW webhook by matching payload URL."""
+    """Find an existing AIDW webhook by matching payload URL.
+
+    Searches through all webhooks on the repository and returns the one
+    that matches the configured webhook URL.
+
+    Args:
+        github: GitHubClient instance
+        repo: Repository in "owner/name" format
+        webhook_url: URL to match against webhook configurations
+
+    Returns:
+        Webhook object if found, None otherwise
+    """
     from aidw.github.client import Webhook
 
     hooks = await github.list_webhooks(repo)
@@ -349,6 +362,7 @@ def webhook_add(repo: str) -> None:
         sys.exit(1)
 
     async def _add() -> None:
+        """Create a webhook on the repository."""
         from aidw.github.client import GitHubClient
 
         async with GitHubClient() as github:
@@ -379,6 +393,7 @@ def webhook_remove(repo: str) -> None:
     webhook_url = settings.webhook_url
 
     async def _remove() -> None:
+        """Delete the webhook from the repository."""
         from aidw.github.client import GitHubClient
 
         async with GitHubClient() as github:
@@ -401,6 +416,7 @@ def webhook_status(repo: str) -> None:
     webhook_url = settings.webhook_url
 
     async def _status() -> None:
+        """Display webhook configuration and recent deliveries."""
         from aidw.github.client import GitHubClient
 
         async with GitHubClient() as github:

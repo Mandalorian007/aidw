@@ -10,13 +10,20 @@ from aidw.env import get_settings
 
 logger = logging.getLogger(__name__)
 
-# Sandbox timeout in seconds (1 hour)
+# Sandbox timeout in seconds (1 hour). E2B sandboxes auto-terminate after inactivity.
 SANDBOX_TIMEOUT = 3600
 
 
 @dataclass
 class SandboxConfig:
-    """Configuration for a sandbox."""
+    """Configuration for creating and initializing a sandbox.
+
+    Attributes:
+        repo_url: Git repository URL (e.g., https://github.com/owner/repo.git)
+        branch: Optional branch to checkout after cloning
+        gh_token: Optional GitHub token for authentication (falls back to env)
+        claude_auth_path: Path to local .claude directory for auth sync
+    """
 
     repo_url: str
     branch: str | None = None
@@ -26,7 +33,15 @@ class SandboxConfig:
 
 @dataclass
 class SandboxInstance:
-    """A running sandbox instance."""
+    """A running sandbox instance with initialized repository.
+
+    Attributes:
+        sandbox: E2B sandbox object for command execution and file operations
+        sandbox_id: Unique ID for reconnecting to this sandbox
+        repo_path: Path to cloned repository in sandbox
+        context_path: Path where context.md is written
+        prompt_path: Path where prompt.md is written
+    """
 
     sandbox: Sandbox
     sandbox_id: str
@@ -39,17 +54,32 @@ class SandboxManager:
     """Manages E2B sandboxes for workflow execution."""
 
     def __init__(self):
+        """Initialize sandbox manager with E2B and GitHub credentials from settings."""
         settings = get_settings()
         self.api_key = settings.e2b_api_key
         self.gh_token = settings.gh_token
 
     async def create_sandbox(self, config: SandboxConfig) -> SandboxInstance:
-        """Create and initialize a new sandbox.
+        """Create and initialize a new sandbox with full repository setup.
 
-        1. Creates E2B sandbox
-        2. Syncs Claude auth if available
-        3. Clones repository
-        4. Checks out branch if specified
+        Orchestrates the complete sandbox initialization lifecycle:
+        1. Creates E2B sandbox with configured timeout
+        2. Installs development tools (aitk)
+        3. Syncs Claude authentication for Code subscription
+        4. Clones repository with GitHub token authentication
+        5. Checks out specified branch if provided
+        6. Pulls encrypted .env files from aitk env store
+
+        If any step fails, the sandbox is killed and the exception is re-raised.
+
+        Args:
+            config: Sandbox configuration with repo URL, branch, and auth info
+
+        Returns:
+            Initialized sandbox instance ready for workflow execution
+
+        Raises:
+            RuntimeError: If repository clone or branch checkout fails
         """
         logger.info(f"Creating sandbox for {config.repo_url}")
 
@@ -87,7 +117,11 @@ class SandboxManager:
             raise
 
     async def _install_tools(self, instance: SandboxInstance) -> None:
-        """Install development tools in the sandbox."""
+        """Install development tools (aitk) in the sandbox.
+
+        Prefers uv if available, falls back to pip. Also syncs aitk config
+        for env store access.
+        """
         logger.info("Installing tools in sandbox...")
 
         # Check if uv is available (preferred), otherwise fall back to pip
@@ -113,7 +147,11 @@ class SandboxManager:
         await self._sync_aitk_config(instance)
 
     async def _sync_aitk_config(self, instance: SandboxInstance) -> None:
-        """Sync aitk configuration to sandbox for env store access."""
+        """Sync aitk configuration to sandbox for env store access.
+
+        Copies ~/.config/aitk/config from host to sandbox with secure permissions.
+        Enables automatic decryption of .env files from env store.
+        """
         aitk_config = Path.home() / ".config/aitk/config"
         if not aitk_config.exists():
             logger.debug("No aitk config found, skipping env store setup")
@@ -131,7 +169,15 @@ class SandboxManager:
             logger.warning(f"Failed to sync aitk config: {e}")
 
     async def _sync_claude_auth(self, instance: SandboxInstance, auth_path: Path) -> None:
-        """Sync Claude authentication to sandbox."""
+        """Sync Claude authentication files to sandbox.
+
+        Copies credentials.json and settings.json from ~/.claude to sandbox,
+        enabling Claude Code subscription auth to work in the sandbox environment.
+
+        Args:
+            instance: Sandbox instance to sync auth to
+            auth_path: Path to directory containing .claude folder (usually home dir)
+        """
         logger.info("Syncing Claude authentication to sandbox")
 
         # Read local auth files
@@ -152,7 +198,18 @@ class SandboxManager:
                 logger.debug(f"Synced {file_name} to sandbox")
 
     async def _clone_repo(self, instance: SandboxInstance, config: SandboxConfig) -> None:
-        """Clone repository into sandbox."""
+        """Clone repository into sandbox with authentication.
+
+        Injects GitHub token into clone URL for private repos, configures git
+        user, and pulls encrypted .env files from aitk env store if configured.
+
+        Args:
+            instance: Sandbox instance to clone into
+            config: Config with repo URL and optional token
+
+        Raises:
+            RuntimeError: If git clone fails
+        """
         logger.info(f"Cloning {config.repo_url}")
 
         # Build clone URL with token if available
@@ -209,7 +266,17 @@ class SandboxManager:
             logger.debug(f"No env files pulled for {owner_repo}: {e}")
 
     async def _checkout_branch(self, instance: SandboxInstance, branch: str) -> None:
-        """Checkout or create a branch."""
+        """Checkout existing branch or create new one.
+
+        Attempts checkout first, creates new branch if it doesn't exist.
+
+        Args:
+            instance: Sandbox instance with cloned repo
+            branch: Branch name to checkout/create
+
+        Raises:
+            RuntimeError: If checkout and branch creation both fail
+        """
         logger.info(f"Checking out branch: {branch}")
 
         # Try to checkout existing branch
@@ -229,15 +296,20 @@ class SandboxManager:
                 raise RuntimeError(f"Failed to checkout/create branch: {result.stderr}")
 
     async def write_context(self, instance: SandboxInstance, context: str) -> None:
-        """Write context file to sandbox."""
+        """Write context file to sandbox at /home/user/context.md."""
         instance.sandbox.files.write(instance.context_path, context)
 
     async def write_prompt(self, instance: SandboxInstance, prompt: str) -> None:
-        """Write prompt file to sandbox."""
+        """Write prompt file to sandbox at /home/user/prompt.md."""
         instance.sandbox.files.write(instance.prompt_path, prompt)
 
     async def get_git_state(self, instance: SandboxInstance) -> dict:
-        """Get git state from sandbox."""
+        """Get git state from sandbox repository.
+
+        Returns:
+            Dict with 'log' (last 10 commits), 'diff_stat' (changes from HEAD~1),
+            and 'branch' (current branch name)
+        """
         log_result = instance.sandbox.commands.run(
             f"cd {instance.repo_path} && git log --oneline -10",
             timeout=30,
@@ -265,7 +337,16 @@ class SandboxManager:
         branch: str,
         force: bool = False,
     ) -> None:
-        """Push changes to remote."""
+        """Push changes to remote repository.
+
+        Args:
+            instance: Sandbox with committed changes
+            branch: Branch name to push
+            force: Whether to force push (use with caution)
+
+        Raises:
+            RuntimeError: If git push fails
+        """
         logger.info(f"Pushing changes to {branch}")
 
         force_flag = "--force" if force else ""
@@ -278,14 +359,25 @@ class SandboxManager:
             raise RuntimeError(f"Failed to push changes: {result.stderr}")
 
     async def read_file(self, instance: SandboxInstance, path: str) -> str | None:
-        """Read a file from the sandbox."""
+        """Read a file from the sandbox.
+
+        Args:
+            instance: Sandbox instance
+            path: Absolute path to file in sandbox
+
+        Returns:
+            File contents as string, or None if file doesn't exist
+        """
         try:
             return instance.sandbox.files.read(path)
         except Exception:
             return None
 
     async def kill_sandbox(self, instance: SandboxInstance) -> None:
-        """Kill a sandbox."""
+        """Terminate sandbox and release resources.
+
+        Errors during shutdown are logged but not raised.
+        """
         logger.info(f"Killing sandbox: {instance.sandbox_id}")
         try:
             instance.sandbox.kill()
@@ -293,7 +385,16 @@ class SandboxManager:
             logger.warning(f"Error killing sandbox: {e}")
 
     async def reconnect(self, sandbox_id: str) -> SandboxInstance | None:
-        """Reconnect to an existing sandbox."""
+        """Reconnect to an existing sandbox by ID.
+
+        Useful for resuming workflows or debugging. Returns None if reconnection fails.
+
+        Args:
+            sandbox_id: E2B sandbox ID to reconnect to
+
+        Returns:
+            Sandbox instance if successful, None otherwise
+        """
         try:
             sandbox = Sandbox.connect(sandbox_id, api_key=self.api_key)
             return SandboxInstance(

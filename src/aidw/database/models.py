@@ -8,7 +8,16 @@ import json
 
 
 class SessionStatus(Enum):
-    """Status of a workflow session."""
+    """Status of a workflow session.
+
+    Tracks the lifecycle of a workflow execution from creation to completion.
+
+    Values:
+        PENDING: Session created but not yet started
+        RUNNING: Session is actively executing
+        COMPLETED: Session finished successfully
+        FAILED: Session encountered an error
+    """
 
     PENDING = "pending"
     RUNNING = "running"
@@ -18,7 +27,29 @@ class SessionStatus(Enum):
 
 @dataclass
 class Session:
-    """A workflow session."""
+    """A workflow session tracking a command execution.
+
+    Records all information about a workflow execution including timing,
+    status, associated resources (sandbox, PR), and error details. Used
+    for debugging and monitoring.
+
+    Attributes:
+        id: Unique session ID (UUID)
+        command: Command name (plan, refine, build, oneshot, iterate, codereview)
+        status: Current status of the session
+        repo: Repository in "owner/name" format
+        issue_number: Associated issue number
+        pr_number: Associated PR number (if applicable)
+        branch: Git branch being worked on
+        sandbox_id: E2B sandbox ID for this session
+        triggered_by: GitHub username who triggered the command
+        instruction: Optional instruction text provided with command
+        created_at: When the session was created
+        updated_at: When the session was last updated
+        completed_at: When the session finished (success or failure)
+        error: Error message if session failed
+        metadata: Additional key-value data for this session
+    """
 
     id: str
     command: str  # plan, refine, build, oneshot, iterate
@@ -37,7 +68,14 @@ class Session:
     metadata: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict:
-        """Convert to dictionary for database storage."""
+        """Convert to dictionary for database storage.
+
+        Serializes all fields including datetime conversion to ISO format
+        and metadata JSON encoding.
+
+        Returns:
+            Dictionary suitable for database insertion
+        """
         return {
             "id": self.id,
             "command": self.command,
@@ -58,7 +96,17 @@ class Session:
 
     @classmethod
     def from_dict(cls, data: dict) -> "Session":
-        """Create from database row dictionary."""
+        """Create from database row dictionary.
+
+        Deserializes database row data back into a Session object,
+        including datetime parsing and metadata JSON decoding.
+
+        Args:
+            data: Dictionary from database row
+
+        Returns:
+            Session instance
+        """
         return cls(
             id=data["id"],
             command=data["command"],

@@ -21,6 +21,12 @@ class IterateCommand(BaseCommand):
     prompt_template = "iterate.md"
 
     def get_progress_steps(self) -> list[ProgressStep]:
+        """Return the progress steps for the iterate workflow.
+
+        Returns:
+            List of four steps: analyze feedback, update implementation,
+            update tests, and push changes
+        """
         return [
             ProgressStep("Analyze feedback"),
             ProgressStep("Update implementation"),
@@ -36,7 +42,31 @@ class IterateCommand(BaseCommand):
         progress: ProgressReporter,
         tracker: ProgressTracker,
     ) -> dict[str, Any]:
-        """Iterate on the implementation."""
+        """Iterate on the implementation based on user feedback.
+
+        Workflow steps:
+        1. Analyze feedback - Renders prompt with user's iteration instructions
+           and current PR state
+        2. Update implementation - Runs Claude Code to modify code based on feedback
+        3. Update tests - Claude Code updates tests to match code changes
+        4. Push changes - Commits and pushes updates to existing PR
+
+        This command is for post-build iterations when users request changes
+        to an implemented PR.
+
+        Args:
+            session: Database session tracking this workflow
+            context: Workflow context with PR, issue, and implementation state
+            executor: Sandbox executor for running Claude Code
+            progress: Progress reporter for posting updates to GitHub
+            tracker: Progress tracker for managing step status
+
+        Returns:
+            Dictionary with pr_number and pr_url of the updated PR
+
+        Raises:
+            RuntimeError: If Claude Code fails
+        """
         # Step 1: Analyze feedback
         await self._update_step(tracker, progress, 0, StepStatus.RUNNING)
         start = time.time()
@@ -77,7 +107,13 @@ class IterateCommand(BaseCommand):
         }
 
     async def execute_manual(self, repo: str, pr: int, instruction: str = "") -> None:
-        """Execute iterate command manually."""
+        """Execute iterate command manually from CLI or script.
+
+        Args:
+            repo: Repository in owner/name format
+            pr: PR number containing the implementation to iterate on
+            instruction: User feedback to guide the iteration
+        """
         cmd = ParsedCommand(
             command=self.command_name,
             instruction=instruction,

@@ -7,7 +7,7 @@ from aidw.sandbox.manager import SandboxInstance
 
 logger = logging.getLogger(__name__)
 
-# Default Claude config directory
+# Default Claude config directory containing authentication files
 DEFAULT_CLAUDE_DIR = Path.home() / ".claude"
 
 

@@ -10,7 +10,18 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class GitStatus:
-    """Git repository status."""
+    """Git repository status information.
+
+    Parsed from git status --porcelain output to provide structured
+    information about the working tree state.
+
+    Attributes:
+        branch: Current branch name
+        clean: True if no changes (staged, modified, or untracked)
+        staged_files: Files in staging area ready to commit
+        modified_files: Modified files not yet staged
+        untracked_files: New files not yet added to git
+    """
 
     branch: str
     clean: bool
@@ -20,7 +31,17 @@ class GitStatus:
 
 
 async def get_status(instance: SandboxInstance) -> GitStatus:
-    """Get git status in the repo."""
+    """Get git status in the repo.
+
+    Parses git status --porcelain output to determine branch, staged files,
+    modified files, and untracked files.
+
+    Args:
+        instance: Sandbox instance with cloned repository
+
+    Returns:
+        Structured git status information
+    """
     repo_path = instance.repo_path
 
     # Get current branch
@@ -64,7 +85,15 @@ async def get_status(instance: SandboxInstance) -> GitStatus:
 
 
 async def get_log(instance: SandboxInstance, count: int = 10) -> str:
-    """Get recent git log."""
+    """Get recent git log.
+
+    Args:
+        instance: Sandbox instance with cloned repository
+        count: Number of commits to show (default: 10)
+
+    Returns:
+        Git log output (one line per commit)
+    """
     result = instance.sandbox.commands.run(
         f"cd {instance.repo_path} && git log --oneline -{count}",
         timeout=30,
@@ -73,7 +102,15 @@ async def get_log(instance: SandboxInstance, count: int = 10) -> str:
 
 
 async def get_diff(instance: SandboxInstance, base: str | None = None) -> str:
-    """Get diff from base (defaults to HEAD~1)."""
+    """Get diff from base commit.
+
+    Args:
+        instance: Sandbox instance with cloned repository
+        base: Base commit/ref for diff (default: HEAD~1)
+
+    Returns:
+        Full git diff output
+    """
     base = base or "HEAD~1"
     result = instance.sandbox.commands.run(
         f"cd {instance.repo_path} && git diff {base} 2>/dev/null || echo ''",
@@ -83,7 +120,17 @@ async def get_diff(instance: SandboxInstance, base: str | None = None) -> str:
 
 
 async def get_diff_stat(instance: SandboxInstance, base: str | None = None) -> str:
-    """Get diff stat from base."""
+    """Get diff statistics from base commit.
+
+    Shows a summary of changed files and line counts.
+
+    Args:
+        instance: Sandbox instance with cloned repository
+        base: Base commit/ref for diff (default: HEAD~1)
+
+    Returns:
+        Git diff --stat output
+    """
     base = base or "HEAD~1"
     result = instance.sandbox.commands.run(
         f"cd {instance.repo_path} && git diff --stat {base} 2>/dev/null || echo ''",
@@ -93,7 +140,15 @@ async def get_diff_stat(instance: SandboxInstance, base: str | None = None) -> s
 
 
 async def create_branch(instance: SandboxInstance, branch: str) -> bool:
-    """Create and checkout a new branch."""
+    """Create and checkout a new branch.
+
+    Args:
+        instance: Sandbox instance with cloned repository
+        branch: Name of new branch to create
+
+    Returns:
+        True if successful, False otherwise
+    """
     result = instance.sandbox.commands.run(
         f"cd {instance.repo_path} && git checkout -b {branch}",
         timeout=30,
@@ -102,7 +157,15 @@ async def create_branch(instance: SandboxInstance, branch: str) -> bool:
 
 
 async def checkout_branch(instance: SandboxInstance, branch: str) -> bool:
-    """Checkout an existing branch."""
+    """Checkout an existing branch.
+
+    Args:
+        instance: Sandbox instance with cloned repository
+        branch: Name of branch to checkout
+
+    Returns:
+        True if successful, False otherwise
+    """
     result = instance.sandbox.commands.run(
         f"cd {instance.repo_path} && git checkout {branch}",
         timeout=30,
@@ -115,7 +178,16 @@ async def push(
     branch: str | None = None,
     force: bool = False,
 ) -> bool:
-    """Push changes to remote."""
+    """Push changes to remote repository.
+
+    Args:
+        instance: Sandbox instance with cloned repository
+        branch: Branch name to push (uses current if None)
+        force: Whether to force push
+
+    Returns:
+        True if successful, False otherwise
+    """
     branch_arg = branch or ""
     force_arg = "--force" if force else ""
 
@@ -127,7 +199,14 @@ async def push(
 
 
 async def fetch(instance: SandboxInstance) -> bool:
-    """Fetch from remote."""
+    """Fetch from remote repository.
+
+    Args:
+        instance: Sandbox instance with cloned repository
+
+    Returns:
+        True if successful, False otherwise
+    """
     result = instance.sandbox.commands.run(
         f"cd {instance.repo_path} && git fetch",
         timeout=120,
@@ -136,7 +215,14 @@ async def fetch(instance: SandboxInstance) -> bool:
 
 
 async def pull(instance: SandboxInstance) -> bool:
-    """Pull from remote."""
+    """Pull from remote repository.
+
+    Args:
+        instance: Sandbox instance with cloned repository
+
+    Returns:
+        True if successful, False otherwise
+    """
     result = instance.sandbox.commands.run(
         f"cd {instance.repo_path} && git pull",
         timeout=120,

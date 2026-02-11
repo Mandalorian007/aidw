@@ -15,15 +15,26 @@ from dotenv import load_dotenv
 # Load .env file if it exists
 load_dotenv()
 
-# Config directory
+# Config directory and file paths
+# All AIDW configuration is stored in ~/.config/aidw/
 CONFIG_DIR = Path.home() / ".config" / "aidw"
-CONFIG_FILE = CONFIG_DIR / "config.yml"
-CREDENTIALS_FILE = CONFIG_DIR / "credentials"
-DB_FILE = CONFIG_DIR / "sessions.db"
+CONFIG_FILE = CONFIG_DIR / "config.yml"  # Server and auth configuration
+CREDENTIALS_FILE = CONFIG_DIR / "credentials"  # API keys and secrets
+DB_FILE = CONFIG_DIR / "sessions.db"  # SQLite session database
 
 
 class ServerConfig(BaseSettings):
-    """Server configuration."""
+    """Server configuration for the webhook server.
+
+    Controls how the FastAPI webhook server runs, including host/port
+    binding, worker processes, and public domain for webhook URLs.
+
+    Attributes:
+        port: Port to bind the server to
+        workers: Number of uvicorn worker processes
+        host: Host address to bind to (0.0.0.0 = all interfaces)
+        domain: Public domain for webhook URL (e.g., "https://example.com")
+    """
 
     port: int = Field(default=8787, description="Server port")
     workers: int = Field(default=3, description="Number of workers")
@@ -32,19 +43,48 @@ class ServerConfig(BaseSettings):
 
 
 class GitHubConfig(BaseSettings):
-    """GitHub configuration."""
+    """GitHub configuration for webhook handling.
+
+    Controls how the bot responds to GitHub comments.
+
+    Attributes:
+        bot_name: Name used to trigger commands (e.g., "@aidw plan")
+    """
 
     bot_name: str = Field(default="aidw", description="Bot trigger name")
 
 
 class AuthConfig(BaseSettings):
-    """Authentication configuration."""
+    """Authentication configuration for access control.
+
+    Controls who can trigger AIDW commands via GitHub comments.
+
+    Attributes:
+        allowed_users: List of GitHub usernames allowed to trigger commands.
+                      Empty list denies all users (secure default).
+    """
 
     allowed_users: list[str] = Field(default_factory=list, description="Allowed GitHub usernames")
 
 
 class Settings(BaseSettings):
-    """Main settings class combining all configuration."""
+    """Main settings class combining all configuration.
+
+    Aggregates credentials from environment/credentials file and configuration
+    from config.yml. Follows the precedence: env vars > credentials file > config file.
+
+    Credentials are loaded separately via get_credential() to support the
+    credentials file format used by aitk tools.
+
+    Attributes:
+        webhook_secret: Secret for verifying GitHub webhook signatures
+        e2b_api_key: API key for E2B sandbox service
+        gh_token: GitHub personal access token with repo scope
+        claude_token: Long-lived Claude Code authentication token
+        server: Server configuration (host, port, workers)
+        github: GitHub integration configuration (bot name)
+        auth: Authentication configuration (allowed users)
+    """
 
     model_config = SettingsConfigDict(
         env_prefix="AIDW_",
@@ -65,14 +105,29 @@ class Settings(BaseSettings):
 
     @property
     def webhook_url(self) -> str:
-        """Construct the webhook URL from domain or localhost fallback."""
+        """Construct the webhook URL from domain or localhost fallback.
+
+        Uses the configured domain if available, otherwise falls back to
+        localhost with the configured port. This URL is used when creating
+        GitHub webhooks.
+
+        Returns:
+            Full webhook URL (e.g., "https://example.com/webhook")
+        """
         if self.server.domain:
             return f"{self.server.domain.rstrip('/')}/webhook"
         return f"http://localhost:{self.server.port}/webhook"
 
 
 def load_config_file() -> dict:
-    """Load configuration from YAML file."""
+    """Load configuration from YAML file.
+
+    Reads ~/.config/aidw/config.yml and returns its contents as a dictionary.
+    Returns empty dict if file doesn't exist.
+
+    Returns:
+        Configuration dictionary from YAML file
+    """
     if not CONFIG_FILE.exists():
         return {}
 
@@ -81,7 +136,14 @@ def load_config_file() -> dict:
 
 
 def load_credentials_file() -> dict[str, str]:
-    """Load credentials from file."""
+    """Load credentials from file.
+
+    Reads ~/.config/aidw/credentials in KEY=VALUE format (one per line).
+    This format matches aitk's credentials file for consistency.
+
+    Returns:
+        Dictionary mapping credential keys to values
+    """
     if not CREDENTIALS_FILE.exists():
         return {}
 
