@@ -237,9 +237,12 @@ class GitHubClient:
         import re
 
         # Common patterns: Closes #123, Fixes #123, Resolves #123
+        # Also match "issue #123" and "for #123" as fallback (used in AIDW PR bodies)
         patterns = [
             r"(?:closes?|fixes?|resolves?)\s*#(\d+)",
             r"(?:closes?|fixes?|resolves?)\s+.*?#(\d+)",
+            r"(?:for\s+issue|issue)\s*#(\d+)",
+            r"for\s*#(\d+)",
         ]
 
         for pattern in patterns:

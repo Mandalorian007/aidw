@@ -85,6 +85,8 @@ class PlanCommand(BaseCommand):
         # Create PR
         pr_body = f"""## Implementation Plan for #{context.issue.number}
 
+Closes #{context.issue.number}
+
 This PR contains an implementation plan for issue #{context.issue.number}: {context.issue.title}
 
 **Next steps:**
