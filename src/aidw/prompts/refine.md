@@ -2,7 +2,7 @@
 
 ---
 
-Refine the existing PLAN.md based on the feedback above.
+Refine the existing `{{ plan_path }}` based on the feedback above.
 
 Update the plan to address the feedback while maintaining:
 - Clear approach and rationale
@@ -12,4 +12,4 @@ Update the plan to address the feedback while maintaining:
 
 Do NOT implement yet - only update the plan.
 
-After updating PLAN.md, commit it with message "Refine plan based on feedback".
+After updating `{{ plan_path }}`, commit it with message "Refine plan based on feedback".

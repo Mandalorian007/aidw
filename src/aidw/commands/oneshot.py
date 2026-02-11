@@ -85,7 +85,7 @@ class OneshotCommand(BaseCommand):
 This PR fully implements issue #{context.issue.number}: {context.issue.title}
 
 **Artifacts:**
-- `PLAN.md` - Implementation plan
+- [`{context.plan_path}`]({context.plan_path}) - Implementation plan
 - Implementation code
 - Tests
 - Documentation updates

@@ -35,6 +35,7 @@ class WorkflowContext:
     pr: PullRequest | None
     trigger: TriggerInfo
     git_state: GitState | None
+    plan_path: str = ""
 
     def to_dict(self) -> dict:
         """Convert to dictionary for template rendering."""
@@ -82,6 +83,7 @@ class WorkflowContext:
             },
             "git_log": self.git_state.log if self.git_state else "",
             "git_diff_stat": self.git_state.diff_stat if self.git_state else "",
+            "plan_path": self.plan_path,
         }
 
 

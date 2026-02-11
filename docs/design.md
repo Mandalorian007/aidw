@@ -10,8 +10,8 @@ Create `aidw`, an outer loop AI system that triggers AI workflows from GitHub is
 
 | Command | Purpose | When to use | Output |
 |---------|---------|-------------|--------|
-| `@aidw plan` | Create initial plan | Starting work on an issue | Branch + PR with PLAN.md |
-| `@aidw refine` | Iterate on plan | Feedback on the plan before building | Updated PLAN.md |
+| `@aidw plan` | Create initial plan | Starting work on an issue | Branch + PR with `docs/plans/{number}-{slug}.md` |
+| `@aidw refine` | Iterate on plan | Feedback on the plan before building | Updated plan file |
 | `@aidw build` | Implement from plan | Plan approved, ready to code | Code + tests + docs added to PR |
 | `@aidw oneshot` | Full automation | Straightforward issues | Branch + PR with everything |
 | `@aidw iterate` | Iterate on implementation | Feedback on code/tests/docs | Updated code + plan + tests + docs |
@@ -21,9 +21,9 @@ Create `aidw`, an outer loop AI system that triggers AI workflows from GitHub is
 ```
 ISSUE (no PR)
     │
-    ├── @aidw plan ────────► PR with PLAN.md (draft)
+    ├── @aidw plan ────────► PR with docs/plans/{number}-{slug}.md (draft)
     │                              │
-    │                              ├── @aidw refine ──► Updated PLAN.md
+    │                              ├── @aidw refine ──► Updated plan
     │                              │       │
     │                              │       └── (loop) @aidw refine
     │                              │
@@ -243,7 +243,7 @@ Branch: `{{pr.branch}}`
 
 Create a detailed implementation plan for this issue.
 
-Output a PLAN.md file with:
+Create the docs/plans/ directory if it doesn't exist, then output the plan to {{ plan_path }} with:
 1. **Approach** - High-level strategy and rationale
 2. **Files** - List files to create/modify with brief descriptions
 3. **Testing** - Testing strategy
@@ -258,7 +258,7 @@ Be specific and actionable. This plan will be reviewed before implementation.
 
 ---
 
-Refine the existing PLAN.md based on the feedback above.
+Refine the existing {{ plan_path }} based on the feedback above.
 
 Update the plan to address the feedback while maintaining:
 - Clear approach and rationale
@@ -275,7 +275,7 @@ Do NOT implement yet - only update the plan.
 
 ---
 
-Implement the plan in PLAN.md.
+Implement the plan in {{ plan_path }}.
 
 1. Read and follow the plan exactly
 2. Write clean, idiomatic code
@@ -295,7 +295,7 @@ Iterate on the implementation based on the feedback above.
 
 Update the implementation AND ensure all artifacts stay aligned:
 - Update code to address feedback
-- Update PLAN.md if approach changed
+- Update {{ plan_path }} if approach changed
 - Update tests to cover new behavior
 - Update docs if needed
 
@@ -334,7 +334,7 @@ After `@aidw oneshot` or `@aidw build`, the PR contains:
 
 ```
 PR #124 (branch: aidw/issue-123)
-├── PLAN.md              # The plan (updated on iterate)
+├── docs/plans/{number}-{slug}.md # The plan (updated on iterate)
 ├── src/...              # Implementation
 ├── tests/...            # Tests
 └── PR Description       # Summary linking to issue
@@ -423,8 +423,8 @@ aidw logs                      # Tail logs
 4. Create test issue
 
 **Test each command:**
-5. `@aidw plan` → verify PR with PLAN.md created
-6. `@aidw refine add error handling` → verify PLAN.md updated
+5. `@aidw plan` → verify PR with plan file in `docs/plans/` created
+6. `@aidw refine add error handling` → verify plan file updated
 7. `@aidw build` → verify code + tests + docs added to PR
 8. `@aidw iterate make the tests more thorough` → verify all artifacts updated
 9. Test `@aidw oneshot` on fresh issue → verify full flow in one command

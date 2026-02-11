@@ -1,6 +1,7 @@
 """Base command class with shared workflow logic."""
 
 import logging
+import re
 from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Any
@@ -110,6 +111,10 @@ class BaseCommand(ABC):
                         trigger=trigger,
                     )
 
+                    # Compute plan path from issue context
+                    context.plan_path = self._get_plan_path(context)
+                    logger.debug(f"Plan path for issue #{context.issue.number}: {context.plan_path}")
+
                     # Determine branch name
                     branch = self._get_branch_name(cmd, context)
 
@@ -205,6 +210,27 @@ class BaseCommand(ABC):
         )
 
         await self.execute(cmd)
+
+    @staticmethod
+    def _slugify_title(title: str) -> str:
+        """Convert a title to a filename-safe slug.
+
+        Lowercase, hyphens for spaces/special chars, collapse runs, strip, truncate to 60 chars.
+        """
+        slug = title.lower()
+        slug = re.sub(r"[^a-z0-9]+", "-", slug)
+        slug = slug.strip("-")
+        slug = slug[:60].rstrip("-")
+        return slug or "plan"
+
+    @staticmethod
+    def _get_plan_path(context: WorkflowContext) -> str:
+        """Compute the plan file path from the issue title.
+
+        Uses the issue number as a prefix for guaranteed uniqueness.
+        """
+        slug = BaseCommand._slugify_title(context.issue.title)
+        return f"docs/plans/{context.issue.number}-{slug}.md"
 
     def _get_branch_name(self, cmd: ParsedCommand, context: WorkflowContext) -> str:
         """Get the branch name for this command."""
