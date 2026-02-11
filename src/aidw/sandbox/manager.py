@@ -97,23 +97,17 @@ class SandboxManager:
         except Exception:
             use_uv = False
 
-        if use_uv:
-            # Use uv tool install for isolated installation
-            result = instance.sandbox.commands.run(
-                "uv tool install git+https://github.com/Mandalorian007/aitk",
-                timeout=120,
-            )
-        else:
-            # Fall back to pip (installs into global environment)
-            result = instance.sandbox.commands.run(
-                "pip install git+https://github.com/Mandalorian007/aitk",
-                timeout=120,
-            )
-
-        if result.exit_code != 0:
-            logger.warning(f"Failed to install aitk: {result.stderr}")
-        else:
-            logger.info(f"aitk installed successfully via {'uv' if use_uv else 'pip'}")
+        pkg = "uv" if use_uv else "pip"
+        cmd = (
+            "uv tool install git+https://github.com/Mandalorian007/aitk"
+            if use_uv
+            else "pip install git+https://github.com/Mandalorian007/aitk"
+        )
+        try:
+            instance.sandbox.commands.run(cmd, timeout=120)
+            logger.info(f"aitk installed successfully via {pkg}")
+        except Exception as e:
+            logger.warning(f"Failed to install aitk via {pkg}: {e}")
 
         # Sync aitk config for env store support
         await self._sync_aitk_config(instance)
@@ -204,16 +198,15 @@ class SandboxManager:
         owner_repo = f"{match.group(1)}/{match.group(2)}"
         logger.info(f"Attempting to pull env files for {owner_repo}")
 
-        result = instance.sandbox.commands.run(
-            f"cd {instance.repo_path} && aitk env pull {owner_repo}",
-            timeout=60,
-        )
-
-        if result.exit_code != 0:
-            # Not an error - repo might not have env files in store
-            logger.debug(f"No env files pulled for {owner_repo}: {result.stderr}")
-        else:
+        try:
+            result = instance.sandbox.commands.run(
+                f"cd {instance.repo_path} && aitk env pull {owner_repo}",
+                timeout=60,
+            )
             logger.info(f"Pulled env files for {owner_repo}")
+        except Exception as e:
+            # Not an error - repo might not have env files in store
+            logger.debug(f"No env files pulled for {owner_repo}: {e}")
 
     async def _checkout_branch(self, instance: SandboxInstance, branch: str) -> None:
         """Checkout or create a branch."""
