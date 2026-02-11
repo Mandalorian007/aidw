@@ -43,7 +43,18 @@ async def verify_webhook_signature(
 
 
 def is_user_allowed(username: str) -> bool:
-    """Check if a GitHub username is in the allowed list."""
+    """Check if a GitHub username is in the allowed list.
+
+    Important: If the allowed_users list is empty, this returns False
+    for all users (deny-by-default security posture). You must explicitly
+    configure allowed users in config.yml.
+
+    Args:
+        username: GitHub username to check
+
+    Returns:
+        True if user is allowed, False otherwise
+    """
     settings = get_settings()
 
     # If no allowed users configured, deny all

@@ -11,6 +11,8 @@ from aidw.server.security import is_user_allowed
 logger = logging.getLogger(__name__)
 
 # Command pattern: @aidw <command> [instruction]
+# Matches: @botname command optional instruction text
+# Group 1: bot name, Group 2: command, Group 3: instruction (optional)
 COMMAND_PATTERN = re.compile(
     r"@(\w+)\s+(plan|refine|build|oneshot|iterate|codereview)(?:\s+(.*))?",
     re.IGNORECASE | re.DOTALL,
@@ -19,7 +21,21 @@ COMMAND_PATTERN = re.compile(
 
 @dataclass
 class ParsedCommand:
-    """A parsed command from a GitHub comment."""
+    """A parsed command from a GitHub comment.
+
+    Contains all information needed to execute a command, extracted from
+    the webhook payload and comment text.
+
+    Attributes:
+        command: Command name (plan, refine, build, oneshot, iterate, codereview)
+        instruction: Optional additional instruction text after the command
+        author: GitHub username who triggered the command
+        body: Full text of the comment
+        repo: Repository in "owner/name" format
+        issue_number: Issue number (0 if only PR is available)
+        pr_number: PR number if comment is on a PR
+        comment_id: Comment ID for posting reactions or responses
+    """
 
     command: str  # plan, refine, build, oneshot, iterate
     instruction: str  # Optional additional text
@@ -33,7 +49,23 @@ class ParsedCommand:
 
 @dataclass
 class WebhookContext:
-    """Context extracted from a webhook event."""
+    """Context extracted from a webhook event.
+
+    Intermediate representation of webhook data before command parsing.
+    Contains normalized information from both issue comments and PR
+    review comments.
+
+    Attributes:
+        event_type: GitHub event type (issue_comment, pull_request_review_comment)
+        action: Event action (created, edited, etc.)
+        repo: Repository in "owner/name" format
+        issue_number: Issue number if available
+        pr_number: PR number if comment is on a PR
+        comment_body: Text of the comment
+        comment_author: GitHub username who posted the comment
+        comment_id: Comment ID
+        is_pr_comment: Whether this comment is on a PR (vs an issue)
+    """
 
     event_type: str
     action: str
@@ -148,7 +180,15 @@ def parse_command(context: WebhookContext) -> ParsedCommand | None:
 def validate_command_context(cmd: ParsedCommand) -> str | None:
     """Validate that a command can be run in its context.
 
-    Returns an error message if invalid, None if valid.
+    Ensures commands are run in the appropriate location (issue vs PR).
+    For example, 'plan' must be run on an issue, while 'refine' must
+    be run on a PR.
+
+    Args:
+        cmd: Parsed command to validate
+
+    Returns:
+        Error message string if invalid, None if valid
     """
     # plan and oneshot require an issue (no PR yet)
     if cmd.command in ("plan", "oneshot"):

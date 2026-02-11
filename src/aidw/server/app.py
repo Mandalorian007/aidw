@@ -20,13 +20,22 @@ from aidw.server.webhook import (
 
 logger = logging.getLogger(__name__)
 
-# Database instance
+# Global database instance initialized at startup
+# This is set in the lifespan() context manager and used by route handlers
 db: Database | None = None
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Application lifespan manager."""
+    """Application lifespan manager for startup and shutdown.
+
+    Handles initialization and cleanup of global resources like the
+    database connection. Runs once when the server starts and once
+    when it shuts down.
+
+    Args:
+        app: FastAPI application instance
+    """
     global db
 
     # Startup
@@ -64,7 +73,15 @@ async def health():
 
 
 async def process_command(cmd: ParsedCommand) -> None:
-    """Process a parsed command in the background."""
+    """Process a parsed command in the background.
+
+    Routes the command to the appropriate command handler and executes it.
+    This runs in a FastAPI background task so the webhook endpoint can
+    return immediately.
+
+    Args:
+        cmd: Parsed command from GitHub webhook
+    """
     from aidw.commands import (
         build_command,
         codereview_command,
@@ -103,7 +120,21 @@ async def webhook(
     x_github_event: Annotated[str | None, Header()] = None,
     body: bytes = Depends(verify_webhook_signature),
 ):
-    """Handle GitHub webhook events."""
+    """Handle GitHub webhook events.
+
+    Receives webhook events from GitHub, validates signatures, parses commands
+    from comments, and queues them for background processing. Returns quickly
+    to avoid GitHub webhook timeouts.
+
+    Args:
+        request: FastAPI request object
+        background_tasks: Background task queue for async command execution
+        x_github_event: GitHub event type header (e.g., "issue_comment")
+        body: Request body (validated by verify_webhook_signature)
+
+    Returns:
+        JSON response indicating acceptance or rejection of the webhook
+    """
     if not x_github_event:
         return Response(status_code=400, content="Missing event header")
 
