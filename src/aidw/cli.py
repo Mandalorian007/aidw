@@ -100,12 +100,25 @@ def config(set_credential: str | None) -> None:
     CREDENTIALS_FILE.chmod(0o600)
     click.echo(f"Saved credentials: {CREDENTIALS_FILE}")
 
-    # Configure allowed users
+    # Configure domain
     click.echo()
     config_data: dict[str, Any] = {}
     if CONFIG_FILE.exists():
         with open(CONFIG_FILE) as f:
             config_data = yaml.safe_load(f) or {}
+
+    current_domain = config_data.get("server", {}).get("domain") or ""
+    domain_input = click.prompt(
+        "Server domain (e.g. https://example.com)",
+        default=current_domain,
+        show_default=bool(current_domain),
+    )
+    if "server" not in config_data:
+        config_data["server"] = {"port": 8787, "workers": 3}
+    config_data["server"]["domain"] = domain_input if domain_input else None
+
+    # Configure allowed users
+    click.echo()
 
     current_users = config_data.get("auth", {}).get("allowed_users", [])
     if current_users:
@@ -302,6 +315,130 @@ def scope(context: str) -> None:
     from aidw.commands.scope import scope_command
 
     asyncio.run(scope_command.execute(context))
+
+
+async def _find_aidw_webhook(github, repo: str, webhook_url: str):
+    """Find an existing AIDW webhook by matching payload URL."""
+    from aidw.github.client import Webhook
+
+    hooks = await github.list_webhooks(repo)
+    for hook in hooks:
+        if hook.url == webhook_url:
+            return hook
+    return None
+
+
+@cli.group()
+def webhook() -> None:
+    """Manage GitHub webhooks for AIDW."""
+    pass
+
+
+@webhook.command("add")
+@click.option("--repo", required=True, help="Repository (owner/repo)")
+def webhook_add(repo: str) -> None:
+    """Create an AIDW webhook on a GitHub repository."""
+    settings = get_settings()
+    webhook_url = settings.webhook_url
+
+    if not settings.webhook_secret:
+        click.secho("Error: AIDW_WEBHOOK_SECRET not configured. Run 'aidw config' first.", fg="red")
+        sys.exit(1)
+    if not settings.gh_token:
+        click.secho("Error: GH_TOKEN not configured. Run 'aidw config' first.", fg="red")
+        sys.exit(1)
+
+    async def _add() -> None:
+        from aidw.github.client import GitHubClient
+
+        async with GitHubClient() as github:
+            # Check for existing webhook
+            existing = await _find_aidw_webhook(github, repo, webhook_url)
+            if existing:
+                click.secho(f"Webhook already exists on {repo} (id={existing.id})", fg="yellow")
+                return
+
+            hook = await github.create_webhook(
+                repo=repo,
+                url=webhook_url,
+                secret=settings.webhook_secret,
+                events=["issue_comment", "pull_request_review_comment"],
+            )
+            click.secho(f"Created webhook on {repo} (id={hook.id})", fg="green")
+            click.echo(f"  URL: {hook.url}")
+            click.echo(f"  Events: {', '.join(hook.events)}")
+
+    asyncio.run(_add())
+
+
+@webhook.command("remove")
+@click.option("--repo", required=True, help="Repository (owner/repo)")
+def webhook_remove(repo: str) -> None:
+    """Remove the AIDW webhook from a GitHub repository."""
+    settings = get_settings()
+    webhook_url = settings.webhook_url
+
+    async def _remove() -> None:
+        from aidw.github.client import GitHubClient
+
+        async with GitHubClient() as github:
+            hook = await _find_aidw_webhook(github, repo, webhook_url)
+            if not hook:
+                click.secho(f"No AIDW webhook found on {repo}", fg="yellow")
+                return
+
+            await github.delete_webhook(repo, hook.id)
+            click.secho(f"Removed webhook from {repo} (id={hook.id})", fg="green")
+
+    asyncio.run(_remove())
+
+
+@webhook.command("status")
+@click.option("--repo", required=True, help="Repository (owner/repo)")
+def webhook_status(repo: str) -> None:
+    """Show AIDW webhook config and recent deliveries."""
+    settings = get_settings()
+    webhook_url = settings.webhook_url
+
+    async def _status() -> None:
+        from aidw.github.client import GitHubClient
+
+        async with GitHubClient() as github:
+            hook = await _find_aidw_webhook(github, repo, webhook_url)
+            if not hook:
+                click.secho(f"No AIDW webhook found on {repo}", fg="yellow")
+                return
+
+            click.secho(f"Webhook on {repo}", fg="green", bold=True)
+            click.echo(f"  ID:      {hook.id}")
+            click.echo(f"  URL:     {hook.url}")
+            click.echo(f"  Active:  {hook.active}")
+            click.echo(f"  Events:  {', '.join(hook.events)}")
+            click.echo(f"  Created: {hook.created_at}")
+
+            # Get recent deliveries
+            deliveries = await github.get_webhook_deliveries(repo, hook.id)
+            if not deliveries:
+                click.echo("\n  No deliveries yet.")
+                return
+
+            click.echo(f"\n  Last {len(deliveries)} deliveries:")
+            for d in deliveries:
+                if 200 <= d.status_code < 300:
+                    color = "green"
+                elif d.status_code == 0:
+                    color = "yellow"
+                else:
+                    color = "red"
+                action_str = f" ({d.action})" if d.action else ""
+                redeliver_str = " [redelivery]" if d.redelivery else ""
+                click.echo(
+                    f"    {d.delivered_at}  "
+                    f"{click.style(str(d.status_code), fg=color)}  "
+                    f"{d.event}{action_str}{redeliver_str}"
+                )
+
+    asyncio.run(_status())
 
 
 @cli.command()

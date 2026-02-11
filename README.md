@@ -89,7 +89,28 @@ aidw server           # Start webhook server
 aidw server --dev     # With auto-reload
 ```
 
-Expose with [Tailscale Funnel](https://tailscale.com/kb/1223/funnel) or ngrok, then configure your GitHub repo's webhook to point to `https://your-url/webhook`.
+### Webhook Management
+
+Manage GitHub webhooks directly from the CLI:
+
+```bash
+aidw webhook add --repo owner/repo       # Create webhook on a repo
+aidw webhook status --repo owner/repo    # Show config + recent deliveries
+aidw webhook remove --repo owner/repo    # Remove webhook from a repo
+```
+
+The webhook URL is built from `server.domain` in `~/.config/aidw/config.yml`. Set it during `aidw config` or manually:
+
+```yaml
+server:
+  domain: https://your-server.example.com
+  port: 8787
+  workers: 3
+```
+
+If no domain is configured, it falls back to `http://localhost:{port}/webhook`.
+
+You can also expose the server with [Tailscale Funnel](https://tailscale.com/kb/1223/funnel) or ngrok.
 
 ### Manual Triggers
 
