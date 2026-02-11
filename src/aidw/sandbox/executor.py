@@ -242,8 +242,11 @@ class SandboxExecutor:
     async def file_exists(self, path: str) -> bool:
         """Check if a file exists in the repo."""
         full_path = f"{self.instance.repo_path}/{path}"
-        result = self.instance.sandbox.commands.run(f"test -f {full_path} && echo 'yes'")
-        return result.stdout.strip() == "yes"
+        try:
+            result = self.instance.sandbox.commands.run(f"test -f {full_path} && echo 'yes'")
+            return result.stdout.strip() == "yes"
+        except Exception:
+            return False
 
     async def read_repo_file(self, path: str) -> str | None:
         """Read a file from the repo."""
