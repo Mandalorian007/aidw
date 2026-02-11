@@ -55,6 +55,30 @@ class PullRequest:
     linked_issue_number: int | None
 
 
+@dataclass
+class Webhook:
+    """A GitHub repository webhook."""
+
+    id: int
+    url: str
+    config_url: str
+    active: bool
+    events: list[str]
+    created_at: datetime
+
+
+@dataclass
+class WebhookDelivery:
+    """A GitHub webhook delivery record."""
+
+    id: int
+    delivered_at: datetime
+    status_code: int
+    event: str
+    action: str | None
+    redelivery: bool
+
+
 class GitHubClient:
     """GitHub API client."""
 
@@ -323,3 +347,83 @@ class GitHubClient:
         resp = await self.client.get(f"/repos/{repo}")
         resp.raise_for_status()
         return resp.json()["default_branch"]
+
+    async def list_webhooks(self, repo: str) -> list[Webhook]:
+        """List all webhooks for a repository."""
+        resp = await self.client.get(f"/repos/{repo}/hooks")
+        resp.raise_for_status()
+        data = resp.json()
+
+        return [
+            Webhook(
+                id=h["id"],
+                url=h["config"].get("url", ""),
+                config_url=h["url"],
+                active=h["active"],
+                events=h["events"],
+                created_at=datetime.fromisoformat(h["created_at"].replace("Z", "+00:00")),
+            )
+            for h in data
+        ]
+
+    async def create_webhook(
+        self,
+        repo: str,
+        url: str,
+        secret: str,
+        events: list[str],
+    ) -> Webhook:
+        """Create a webhook on a repository."""
+        resp = await self.client.post(
+            f"/repos/{repo}/hooks",
+            json={
+                "name": "web",
+                "active": True,
+                "events": events,
+                "config": {
+                    "url": url,
+                    "content_type": "application/json",
+                    "secret": secret,
+                    "insecure_ssl": "0",
+                },
+            },
+        )
+        resp.raise_for_status()
+        data = resp.json()
+
+        return Webhook(
+            id=data["id"],
+            url=data["config"].get("url", ""),
+            config_url=data["url"],
+            active=data["active"],
+            events=data["events"],
+            created_at=datetime.fromisoformat(data["created_at"].replace("Z", "+00:00")),
+        )
+
+    async def delete_webhook(self, repo: str, hook_id: int) -> None:
+        """Delete a webhook from a repository."""
+        resp = await self.client.delete(f"/repos/{repo}/hooks/{hook_id}")
+        resp.raise_for_status()
+
+    async def get_webhook_deliveries(
+        self, repo: str, hook_id: int, count: int = 10
+    ) -> list[WebhookDelivery]:
+        """Get recent deliveries for a webhook."""
+        resp = await self.client.get(
+            f"/repos/{repo}/hooks/{hook_id}/deliveries",
+            params={"per_page": count},
+        )
+        resp.raise_for_status()
+        data = resp.json()
+
+        return [
+            WebhookDelivery(
+                id=d["id"],
+                delivered_at=datetime.fromisoformat(d["delivered_at"].replace("Z", "+00:00")),
+                status_code=d.get("status_code", 0),
+                event=d["event"],
+                action=d.get("action"),
+                redelivery=d.get("redelivery", False),
+            )
+            for d in data
+        ]

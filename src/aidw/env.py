@@ -28,6 +28,7 @@ class ServerConfig(BaseSettings):
     port: int = Field(default=8787, description="Server port")
     workers: int = Field(default=3, description="Number of workers")
     host: str = Field(default="0.0.0.0", description="Server host")
+    domain: str | None = Field(default=None, description="Public domain for webhook URL")
 
 
 class GitHubConfig(BaseSettings):
@@ -61,6 +62,13 @@ class Settings(BaseSettings):
     server: ServerConfig = Field(default_factory=ServerConfig)
     github: GitHubConfig = Field(default_factory=GitHubConfig)
     auth: AuthConfig = Field(default_factory=AuthConfig)
+
+    @property
+    def webhook_url(self) -> str:
+        """Construct the webhook URL from domain or localhost fallback."""
+        if self.server.domain:
+            return f"{self.server.domain.rstrip('/')}/webhook"
+        return f"http://localhost:{self.server.port}/webhook"
 
 
 def load_config_file() -> dict:
@@ -117,6 +125,7 @@ def create_default_config() -> None:
         "server": {
             "port": 8787,
             "workers": 3,
+            "domain": None,
         },
         "github": {
             "bot_name": "aidw",
