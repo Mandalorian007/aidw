@@ -24,7 +24,14 @@ class ScopeCommand:
     prompt_template = "scope.md"
 
     def _load_prompt(self, context: str = "") -> str:
-        """Load and render the prompt template."""
+        """Load and render the scope prompt template.
+
+        Args:
+            context: Optional additional context to append to the prompt
+
+        Returns:
+            The rendered prompt string with context appended if provided
+        """
         prompt_path = Path(__file__).parent.parent / "prompts" / self.prompt_template
         prompt = prompt_path.read_text()
 
@@ -107,7 +114,13 @@ class ScopeCommand:
             sandbox.kill()
 
     async def _install_tools(self, sandbox: Sandbox) -> None:
-        """Install development tools in the sandbox."""
+        """Install aitk (AI Toolkit) for Notion access in the sandbox.
+
+        Prefers uv if available for faster installation, falls back to pip.
+
+        Args:
+            sandbox: E2B sandbox instance to install tools in
+        """
         # Check if uv is available (preferred), otherwise fall back to pip
         try:
             uv_check = sandbox.commands.run("which uv", timeout=10)
@@ -132,7 +145,14 @@ class ScopeCommand:
             logger.info(f"aitk installed successfully via {'uv' if use_uv else 'pip'}")
 
     async def _sync_aitk_config(self, sandbox: Sandbox) -> None:
-        """Sync aitk configuration to sandbox for env store access."""
+        """Sync aitk configuration to sandbox for env store access.
+
+        Copies ~/.config/aitk/config from the local machine to the sandbox,
+        enabling Claude Code to access Notion credentials via the env store.
+
+        Args:
+            sandbox: E2B sandbox instance to sync config to
+        """
         aitk_config = Path.home() / ".config/aitk/config"
         if not aitk_config.exists():
             logger.debug("No aitk config found, skipping env store setup")
@@ -148,7 +168,14 @@ class ScopeCommand:
             logger.warning(f"Failed to sync aitk config: {e}")
 
     async def _sync_claude_auth(self, sandbox: Sandbox) -> None:
-        """Sync Claude authentication to sandbox."""
+        """Sync Claude authentication files to sandbox.
+
+        Copies ~/.claude/credentials.json and ~/.claude/settings.json from
+        the local machine to the sandbox for Claude Code authentication.
+
+        Args:
+            sandbox: E2B sandbox instance to sync auth to
+        """
         claude_dir = Path.home() / ".claude"
         if not claude_dir.exists():
             logger.warning("No Claude auth directory found, skipping auth sync")
@@ -164,7 +191,15 @@ class ScopeCommand:
                 logger.debug(f"Synced {file_name} to sandbox")
 
     async def _setup_github_auth(self, sandbox: Sandbox, gh_token: str) -> None:
-        """Install and configure GitHub CLI in sandbox."""
+        """Install and configure GitHub CLI in sandbox.
+
+        Installs gh CLI from official apt repository and verifies authentication
+        works with the provided token.
+
+        Args:
+            sandbox: E2B sandbox instance to setup GitHub CLI in
+            gh_token: GitHub personal access token for authentication
+        """
         if not gh_token:
             logger.warning("No GH_TOKEN configured, skipping GitHub auth")
             return
