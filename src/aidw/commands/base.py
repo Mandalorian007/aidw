@@ -26,6 +26,10 @@ class BaseCommand(ABC):
     should_push: bool = True
 
     def __init__(self):
+        """Initialize the command with empty component references.
+
+        Components (db, github, sandbox_manager) are initialized during execute().
+        """
         self.db: Database | None = None
         self.github: GitHubClient | None = None
         self.sandbox_manager: SandboxManager | None = None
@@ -51,7 +55,24 @@ class BaseCommand(ABC):
         pass
 
     async def execute(self, cmd: ParsedCommand) -> None:
-        """Execute the command from a webhook trigger."""
+        """Execute the command from a webhook trigger.
+
+        This is the main entry point for all commands. It orchestrates the complete lifecycle:
+        1. Initialize database and GitHub client
+        2. Create session for tracking
+        3. Build context from issue/PR/comments
+        4. Create E2B sandbox and clone repo
+        5. Run command-specific workflow (subclass implements run_workflow)
+        6. Push changes to GitHub (unless should_push=False)
+        7. Update progress and post results
+        8. Handle errors and cleanup
+
+        Progress is tracked via GitHub comments and reactions are added to the trigger comment.
+        Session state is persisted in SQLite for debugging and status checks.
+
+        Args:
+            cmd: Parsed command from webhook containing repo, issue, PR, instruction, etc.
+        """
         ensure_config_dir()
 
         # Initialize components
@@ -196,7 +217,16 @@ class BaseCommand(ABC):
             await self.db.close()
 
     async def execute_manual(self, repo: str, issue_or_pr: int, instruction: str = "") -> None:
-        """Execute the command manually (for CLI)."""
+        """Execute the command manually from CLI (aidw run <command>).
+
+        Creates a synthetic ParsedCommand and delegates to execute(). Used for testing
+        and manual triggers outside of webhook flow.
+
+        Args:
+            repo: Repository in "owner/repo" format
+            issue_or_pr: Issue or PR number
+            instruction: Optional instruction text (e.g., "make it blue")
+        """
         # Create a fake ParsedCommand
         cmd = ParsedCommand(
             command=self.command_name,
@@ -216,6 +246,17 @@ class BaseCommand(ABC):
         """Convert a title to a filename-safe slug.
 
         Lowercase, hyphens for spaces/special chars, collapse runs, strip, truncate to 60 chars.
+
+        Examples:
+            "Add user authentication" -> "add-user-authentication"
+            "Fix bug in parser (urgent!)" -> "fix-bug-in-parser-urgent"
+            "Support UTF-8 文字" -> "support-utf-8"
+
+        Args:
+            title: The issue title or text to slugify
+
+        Returns:
+            URL-safe slug (max 60 chars), or "plan" if empty after processing
         """
         slug = title.lower()
         slug = re.sub(r"[^a-z0-9]+", "-", slug)
@@ -227,20 +268,52 @@ class BaseCommand(ABC):
     def _get_plan_path(context: WorkflowContext) -> str:
         """Compute the plan file path from the issue title.
 
-        Uses the issue number as a prefix for guaranteed uniqueness.
+        Uses the issue number as a prefix for guaranteed uniqueness, followed by
+        a slugified version of the issue title for readability.
+
+        Examples:
+            Issue #13 "Clean up documentation" -> "docs/plans/13-clean-up-documentation.md"
+            Issue #42 "Add OAuth support" -> "docs/plans/42-add-oauth-support.md"
+
+        Args:
+            context: Workflow context containing issue information
+
+        Returns:
+            Path to plan file in docs/plans/{number}-{slug}.md format
         """
         slug = BaseCommand._slugify_title(context.issue.title)
         return f"docs/plans/{context.issue.number}-{slug}.md"
 
     def _get_branch_name(self, cmd: ParsedCommand, context: WorkflowContext) -> str:
-        """Get the branch name for this command."""
+        """Get the branch name for this command.
+
+        For PR-based commands (refine, build, iterate), uses the existing PR branch.
+        For issue-based commands (plan, oneshot), creates new branch aidw/issue-{number}.
+
+        Args:
+            cmd: Parsed command containing PR number if applicable
+            context: Workflow context with PR info if available
+
+        Returns:
+            Branch name to use for this workflow
+        """
         if cmd.pr_number and context.pr:
             return context.pr.branch
 
         return f"aidw/issue-{cmd.issue_number}"
 
     async def _render_prompt(self, context: WorkflowContext) -> str:
-        """Render the prompt template with context."""
+        """Render the prompt template with context.
+
+        Uses Jinja2 to render the command-specific prompt template (e.g., plan.md, build.md)
+        with the full workflow context (issue, PR, comments, git state, etc.).
+
+        Args:
+            context: Complete workflow context for template rendering
+
+        Returns:
+            Rendered prompt text ready to pass to Claude Code
+        """
         renderer = PromptRenderer()
         return renderer.render(self.prompt_template, context)
 
@@ -252,7 +325,15 @@ class BaseCommand(ABC):
         status: StepStatus,
         duration: int | None = None,
     ) -> None:
-        """Update a step's status and refresh progress."""
+        """Update a step's status and refresh progress comment on GitHub.
+
+        Args:
+            tracker: Progress tracker holding all steps
+            progress: Progress reporter for posting updates
+            step_index: Index of step to update (0-based)
+            status: New status (running, completed, failed)
+            duration: Optional duration in seconds if step completed
+        """
         tracker.steps[step_index].status = status
         if duration is not None:
             tracker.steps[step_index].duration_seconds = duration

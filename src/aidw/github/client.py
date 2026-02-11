@@ -11,11 +11,16 @@ from aidw.env import get_settings
 logger = logging.getLogger(__name__)
 
 API_BASE = "https://api.github.com"
+"""Base URL for GitHub REST API v3."""
 
 
 @dataclass
 class Comment:
-    """A GitHub comment."""
+    """A GitHub comment on an issue or pull request.
+
+    Represents both regular issue/PR comments and inline review comments.
+    Review comments include file path context in the body field.
+    """
 
     id: int
     author: str
@@ -26,7 +31,11 @@ class Comment:
 
 @dataclass
 class Issue:
-    """A GitHub issue."""
+    """A GitHub issue with metadata and comments.
+
+    Contains the issue's core metadata along with all comments
+    fetched from the GitHub API.
+    """
 
     number: int
     title: str
@@ -40,7 +49,13 @@ class Issue:
 
 @dataclass
 class PullRequest:
-    """A GitHub pull request."""
+    """A GitHub pull request with metadata and comments.
+
+    Contains the PR's core metadata along with both regular comments
+    and inline review comments, sorted chronologically. May include
+    a linked issue number if the PR body references an issue with
+    keywords like "Closes #123" or "Fixes #123".
+    """
 
     number: int
     title: str
@@ -57,7 +72,11 @@ class PullRequest:
 
 @dataclass
 class Webhook:
-    """A GitHub repository webhook."""
+    """A GitHub repository webhook configuration.
+
+    Represents a webhook registered on a repository, including its
+    target URL, active status, and subscribed events.
+    """
 
     id: int
     url: str
@@ -69,7 +88,11 @@ class Webhook:
 
 @dataclass
 class WebhookDelivery:
-    """A GitHub webhook delivery record."""
+    """A GitHub webhook delivery record.
+
+    Represents a single delivery attempt of a webhook event,
+    including response status and timing information.
+    """
 
     id: int
     delivered_at: datetime
@@ -80,14 +103,36 @@ class WebhookDelivery:
 
 
 class GitHubClient:
-    """GitHub API client."""
+    """GitHub API client for issues, PRs, comments, and webhooks.
+
+    Uses httpx for async HTTP requests. Must be used as an async context
+    manager to properly initialize and cleanup the HTTP client.
+
+    Example:
+        async with GitHubClient() as client:
+            issue = await client.get_issue("owner/repo", 123)
+    """
 
     def __init__(self, token: str | None = None):
+        """Initialize the GitHub client.
+
+        Args:
+            token: GitHub personal access token. If not provided,
+                uses the token from application settings.
+        """
         settings = get_settings()
         self.token = token or settings.gh_token
         self._client: httpx.AsyncClient | None = None
 
     async def __aenter__(self) -> "GitHubClient":
+        """Initialize the HTTP client with GitHub API headers.
+
+        Configures the client with authentication, API version,
+        and appropriate timeout settings.
+
+        Returns:
+            The initialized GitHubClient instance
+        """
         self._client = httpx.AsyncClient(
             base_url=API_BASE,
             headers={
@@ -100,17 +145,40 @@ class GitHubClient:
         return self
 
     async def __aexit__(self, *args) -> None:
+        """Close the HTTP client and cleanup resources."""
         if self._client:
             await self._client.aclose()
 
     @property
     def client(self) -> httpx.AsyncClient:
+        """Get the underlying httpx client.
+
+        Returns:
+            The configured httpx AsyncClient
+
+        Raises:
+            RuntimeError: If accessed outside async context manager
+        """
         if not self._client:
             raise RuntimeError("Client not initialized. Use async context manager.")
         return self._client
 
     async def get_issue(self, repo: str, issue_number: int) -> Issue:
-        """Get an issue with all comments."""
+        """Get an issue with all comments.
+
+        Fetches the issue metadata and all associated comments using
+        GitHub's paginated comments API.
+
+        Args:
+            repo: Repository in "owner/name" format
+            issue_number: Issue number
+
+        Returns:
+            Issue object with complete metadata and comments
+
+        Raises:
+            httpx.HTTPStatusError: If the API request fails
+        """
         # Get issue
         resp = await self.client.get(f"/repos/{repo}/issues/{issue_number}")
         resp.raise_for_status()
@@ -131,7 +199,17 @@ class GitHubClient:
         )
 
     async def _get_issue_comments(self, repo: str, issue_number: int) -> list[Comment]:
-        """Get all comments on an issue."""
+        """Get all comments on an issue using pagination.
+
+        Fetches comments in batches of 100 until all pages are retrieved.
+
+        Args:
+            repo: Repository in "owner/name" format
+            issue_number: Issue number
+
+        Returns:
+            List of Comment objects in chronological order
+        """
         comments = []
         page = 1
         per_page = 100
@@ -165,7 +243,22 @@ class GitHubClient:
         return comments
 
     async def get_pull_request(self, repo: str, pr_number: int) -> PullRequest:
-        """Get a pull request with all comments."""
+        """Get a pull request with all comments.
+
+        Fetches the PR metadata along with both regular comments and inline
+        review comments. All comments are combined and sorted chronologically.
+        Also attempts to parse linked issue numbers from the PR body.
+
+        Args:
+            repo: Repository in "owner/name" format
+            pr_number: Pull request number
+
+        Returns:
+            PullRequest object with complete metadata and all comments
+
+        Raises:
+            httpx.HTTPStatusError: If the API request fails
+        """
         # Get PR
         resp = await self.client.get(f"/repos/{repo}/pulls/{pr_number}")
         resp.raise_for_status()
@@ -199,7 +292,19 @@ class GitHubClient:
         )
 
     async def _get_review_comments(self, repo: str, pr_number: int) -> list[Comment]:
-        """Get review comments on a PR."""
+        """Get inline review comments on a pull request using pagination.
+
+        Fetches review comments (inline code comments) in batches of 100
+        until all pages are retrieved. Each comment's body is prefixed
+        with the file path it references.
+
+        Args:
+            repo: Repository in "owner/name" format
+            pr_number: Pull request number
+
+        Returns:
+            List of Comment objects representing review comments
+        """
         comments = []
         page = 1
         per_page = 100
@@ -233,7 +338,17 @@ class GitHubClient:
         return comments
 
     def _parse_linked_issue(self, body: str) -> int | None:
-        """Parse linked issue number from PR body."""
+        """Parse linked issue number from PR body.
+
+        Searches for common GitHub linking keywords (closes, fixes, resolves)
+        followed by an issue number.
+
+        Args:
+            body: The pull request body text
+
+        Returns:
+            Issue number if found, None otherwise
+        """
         import re
 
         # Common patterns: Closes #123, Fixes #123, Resolves #123

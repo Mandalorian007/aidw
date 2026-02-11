@@ -9,13 +9,25 @@ from aidw.sandbox.manager import SandboxInstance
 
 logger = logging.getLogger(__name__)
 
-# Claude Code command timeout (30 minutes)
+# Claude Code command timeout in seconds (30 minutes).
+# This extended timeout accommodates long-running AI-assisted development tasks
+# that may involve multiple file edits, tests, and complex reasoning.
 CLAUDE_TIMEOUT = 1800
 
 
 @dataclass
 class ExecutionResult:
-    """Result of a Claude Code execution."""
+    """Result of a Claude Code execution.
+
+    Captures the outcome of running Claude Code in the sandbox, including
+    success status, output, errors, and exit code for diagnostic purposes.
+
+    Attributes:
+        success: Whether the execution completed successfully
+        output: Standard output from the command
+        error: Error message if execution failed, None otherwise
+        exit_code: Process exit code (0 for success)
+    """
 
     success: bool
     output: str
@@ -27,12 +39,28 @@ class SandboxExecutor:
     """Executes Claude Code in a sandbox."""
 
     def __init__(self, instance: SandboxInstance, claude_token: str = ""):
+        """Initialize the executor for a sandbox instance.
+
+        Args:
+            instance: The sandbox instance to execute commands in
+            claude_token: OAuth token for Claude Code authentication (optional)
+        """
         self.instance = instance
         self.claude_token = claude_token
         self._claude_installed = False
 
     async def _ensure_claude_installed(self) -> None:
-        """Ensure Claude Code is installed in the sandbox."""
+        """Ensure Claude Code is installed in the sandbox.
+
+        Checks if Claude Code CLI is available, and if not, installs it globally
+        via npm. Uses a cached flag to avoid redundant installation checks.
+
+        The installation uses sudo to install globally at /usr/local/bin/claude,
+        which is necessary for the sandboxed environment.
+
+        Raises:
+            RuntimeError: If installation fails
+        """
         if self._claude_installed:
             return
 
@@ -164,7 +192,22 @@ class SandboxExecutor:
     ) -> ExecutionResult:
         """Run Claude Code with context and prompt from files.
 
-        This method reads the prompt from files in the sandbox and passes it to Claude.
+        Reads the prompt from a file in the sandbox and passes it to Claude Code.
+        The context_file parameter is provided for compatibility with the workflow
+        but is not currently used directly - context is typically embedded in the
+        prompt_file content itself.
+
+        This method is useful when prompts are pre-written to the sandbox filesystem
+        as part of the workflow setup, avoiding the need to pass large prompt strings
+        through method parameters.
+
+        Args:
+            context_file: Path to context file in sandbox (reserved for future use)
+            prompt_file: Path to prompt file in sandbox to read and execute
+            working_dir: Working directory for Claude Code (defaults to repo path)
+
+        Returns:
+            ExecutionResult with success status and output
         """
         if working_dir is None:
             working_dir = self.instance.repo_path
@@ -175,7 +218,29 @@ class SandboxExecutor:
         return await self.run_claude(prompt_content, working_dir)
 
     async def commit_changes(self, message: str) -> ExecutionResult:
-        """Stage and commit all changes."""
+        """Stage and commit all changes in the repository.
+
+        Performs a three-step commit process:
+        1. Stage all changes (tracked and untracked) with 'git add -A'
+        2. Check if there are actually changes to commit
+        3. Create the commit if changes exist
+
+        This method handles the common case where there might be no changes
+        (returning success without creating an empty commit) and properly
+        escapes the commit message to avoid shell injection issues.
+
+        Args:
+            message: Commit message (will be escaped for shell safety)
+
+        Returns:
+            ExecutionResult indicating success/failure of the commit operation.
+            Returns success=True with "No changes to commit" message if the
+            working tree is clean.
+
+        Note:
+            Uses 'git add -A' which stages all changes including deletions,
+            unlike 'git add .' which doesn't stage deletions in some git versions.
+        """
         logger.info(f"Committing changes: {message}")
 
         # Stage all changes
@@ -228,7 +293,16 @@ class SandboxExecutor:
         )
 
     async def get_changed_files(self) -> list[str]:
-        """Get list of files changed in the repo."""
+        """Get list of files changed in the repository.
+
+        Attempts to get files changed in the last commit (HEAD~1..HEAD).
+        Falls back to showing all uncommitted changes if HEAD~1 doesn't exist
+        (e.g., in a new repository with only one commit).
+
+        Returns:
+            List of file paths relative to repository root. Returns empty list
+            if git command fails or no changes exist.
+        """
         result = self.instance.sandbox.commands.run(
             f"cd {self.instance.repo_path} && git diff --name-only HEAD~1 2>/dev/null || git diff --name-only",
             timeout=30,
@@ -240,7 +314,16 @@ class SandboxExecutor:
         return [f.strip() for f in result.stdout.split("\n") if f.strip()]
 
     async def file_exists(self, path: str) -> bool:
-        """Check if a file exists in the repo."""
+        """Check if a file exists in the repository.
+
+        Uses 'test -f' to check for regular files only (not directories).
+
+        Args:
+            path: Relative path from repository root
+
+        Returns:
+            True if the file exists, False otherwise (including on errors)
+        """
         full_path = f"{self.instance.repo_path}/{path}"
         try:
             result = self.instance.sandbox.commands.run(f"test -f {full_path} && echo 'yes'")
@@ -249,7 +332,14 @@ class SandboxExecutor:
             return False
 
     async def read_repo_file(self, path: str) -> str | None:
-        """Read a file from the repo."""
+        """Read a file from the repository.
+
+        Args:
+            path: Relative path from repository root
+
+        Returns:
+            File contents as string, or None if file doesn't exist or can't be read
+        """
         full_path = f"{self.instance.repo_path}/{path}"
         try:
             return self.instance.sandbox.files.read(full_path)
@@ -257,6 +347,17 @@ class SandboxExecutor:
             return None
 
     async def write_repo_file(self, path: str, content: str) -> None:
-        """Write a file to the repo."""
+        """Write a file to the repository.
+
+        Creates or overwrites the file at the specified path. Parent directories
+        are created automatically if they don't exist.
+
+        Args:
+            path: Relative path from repository root
+            content: File contents to write
+
+        Raises:
+            Exception: If the file cannot be written (e.g., permission denied)
+        """
         full_path = f"{self.instance.repo_path}/{path}"
         self.instance.sandbox.files.write(full_path, content)
