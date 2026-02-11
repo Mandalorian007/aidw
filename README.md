@@ -44,6 +44,12 @@ uv tool install git+https://github.com/Mandalorian007/aidw
 uv tool upgrade aidw
 ```
 
+If running as a launchd service, restart it to pick up the new version:
+
+```bash
+uv tool upgrade aidw && launchctl kickstart -k gui/$(id -u)/com.aidw.server
+```
+
 ## Configure
 
 ### Quick Setup
