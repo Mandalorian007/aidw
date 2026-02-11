@@ -38,9 +38,6 @@ class BuildCommand(BaseCommand):
         tracker: ProgressTracker,
     ) -> dict[str, Any]:
         """Build the implementation from the plan."""
-        # Compute plan path from issue title
-        context.plan_path = self._get_plan_path(context)
-
         # Step 1: Read plan
         await self._update_step(tracker, progress, 0, StepStatus.RUNNING)
         start = time.time()

@@ -5,7 +5,7 @@ AI Dev Workflow — trigger AI workflows from GitHub issue/PR comments.
 ## How It Works
 
 ```
-Issue → @aidw plan → PR with docs/plans/{slug}.md → @aidw build → Code + Tests + Docs
+Issue → @aidw plan → PR with docs/plans/{number}-{slug}.md → @aidw build → Code + Tests + Docs
                                                   → @aidw refine → Updated plan
                                                   → @aidw iterate → Updated Code
                                                   → @aidw codereview → Review Comment

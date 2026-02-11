@@ -10,7 +10,7 @@ Create `aidw`, an outer loop AI system that triggers AI workflows from GitHub is
 
 | Command | Purpose | When to use | Output |
 |---------|---------|-------------|--------|
-| `@aidw plan` | Create initial plan | Starting work on an issue | Branch + PR with `docs/plans/{slug}.md` |
+| `@aidw plan` | Create initial plan | Starting work on an issue | Branch + PR with `docs/plans/{number}-{slug}.md` |
 | `@aidw refine` | Iterate on plan | Feedback on the plan before building | Updated plan file |
 | `@aidw build` | Implement from plan | Plan approved, ready to code | Code + tests + docs added to PR |
 | `@aidw oneshot` | Full automation | Straightforward issues | Branch + PR with everything |
@@ -21,7 +21,7 @@ Create `aidw`, an outer loop AI system that triggers AI workflows from GitHub is
 ```
 ISSUE (no PR)
     │
-    ├── @aidw plan ────────► PR with docs/plans/{slug}.md (draft)
+    ├── @aidw plan ────────► PR with docs/plans/{number}-{slug}.md (draft)
     │                              │
     │                              ├── @aidw refine ──► Updated plan
     │                              │       │
@@ -334,7 +334,7 @@ After `@aidw oneshot` or `@aidw build`, the PR contains:
 
 ```
 PR #124 (branch: aidw/issue-123)
-├── docs/plans/{slug}.md # The plan (updated on iterate)
+├── docs/plans/{number}-{slug}.md # The plan (updated on iterate)
 ├── src/...              # Implementation
 ├── tests/...            # Tests
 └── PR Description       # Summary linking to issue

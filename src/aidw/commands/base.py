@@ -111,6 +111,10 @@ class BaseCommand(ABC):
                         trigger=trigger,
                     )
 
+                    # Compute plan path from issue context
+                    context.plan_path = self._get_plan_path(context)
+                    logger.debug(f"Plan path for issue #{context.issue.number}: {context.plan_path}")
+
                     # Determine branch name
                     branch = self._get_branch_name(cmd, context)
 
@@ -221,9 +225,12 @@ class BaseCommand(ABC):
 
     @staticmethod
     def _get_plan_path(context: WorkflowContext) -> str:
-        """Compute the plan file path from the issue title."""
+        """Compute the plan file path from the issue title.
+
+        Uses the issue number as a prefix for guaranteed uniqueness.
+        """
         slug = BaseCommand._slugify_title(context.issue.title)
-        return f"docs/plans/{slug}.md"
+        return f"docs/plans/{context.issue.number}-{slug}.md"
 
     def _get_branch_name(self, cmd: ParsedCommand, context: WorkflowContext) -> str:
         """Get the branch name for this command."""
