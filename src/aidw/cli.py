@@ -298,26 +298,6 @@ def status(session_id: str) -> None:
     asyncio.run(_status())
 
 
-@cli.command()
-@click.argument("context", required=False, default="")
-def scope(context: str) -> None:
-    """Run autonomous scoping workflow.
-
-    Finds unscoped Notion tasks, analyzes relevant GitHub repos,
-    and posts scoping comments.
-
-    Optionally provide CONTEXT to guide the scoping focus.
-
-    \b
-    Examples:
-      aidw scope
-      aidw scope "Focus on authentication-related tasks"
-    """
-    from aidw.commands.scope import scope_command
-
-    asyncio.run(scope_command.execute(context))
-
-
 async def _find_aidw_webhook(github, repo: str, webhook_url: str):
     """Find an existing AIDW webhook by matching payload URL.
 
