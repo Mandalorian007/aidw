@@ -6,7 +6,7 @@ Create `aidw`, an outer loop AI system that triggers AI workflows from GitHub is
 
 **Core Concept:** Issue = Unit of Work → Branch → PR. All context flows automatically.
 
-## The 7 Commands
+## The 6 Commands
 
 | Command | Purpose | When to use | Output |
 |---------|---------|-------------|--------|
@@ -16,7 +16,6 @@ Create `aidw`, an outer loop AI system that triggers AI workflows from GitHub is
 | `@aidw oneshot` | Full automation | Straightforward issues | Branch + PR with everything |
 | `@aidw iterate` | Iterate on implementation | Feedback on code/tests/docs | Updated code + plan + tests + docs |
 | `@aidw codereview` | Analyze changes | PR review without modifications | Review comment with analysis |
-| `@aidw scope` | Scope from Notion | Internal/experimental workflow | Not user-facing |
 
 ## State Machine
 
@@ -91,14 +90,13 @@ aidw/
 │   │   ├── webhook.py        # Event handling
 │   │   └── security.py       # Signature verification
 │   │
-│   ├── commands/             # The 7 entry points
+│   ├── commands/             # The 6 entry points
 │   │   ├── plan.py           # @aidw plan
 │   │   ├── refine.py         # @aidw refine
 │   │   ├── build.py          # @aidw build
 │   │   ├── oneshot.py        # @aidw oneshot
 │   │   ├── iterate.py        # @aidw iterate
-│   │   ├── codereview.py     # @aidw codereview
-│   │   └── scope.py          # @aidw scope (internal)
+│   │   └── codereview.py     # @aidw codereview
 │   │
 │   ├── sandbox/              # E2B sandbox management
 │   │   ├── __init__.py
@@ -124,8 +122,7 @@ aidw/
 │   ├── build.md              # Implement from plan
 │   ├── oneshot.md            # Full automation
 │   ├── iterate.md            # Iterate on implementation
-│   ├── codereview.md         # PR code review
-│   └── scope.md              # Notion scoping (internal)
+│   └── codereview.md         # PR code review
 │
 └── pyproject.toml
 ```
