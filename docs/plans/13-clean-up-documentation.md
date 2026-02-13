@@ -1,5 +1,7 @@
 # Plan: Clean Up Documentation
 
+> **HISTORICAL NOTE**: The scope command referenced in this plan has been removed in issue #16. This plan is preserved for historical context but no longer reflects current implementation.
+
 ## Problem
 
 After recent changes (especially the move from `PLAN.md` to `docs/plans/{number}-{slug}.md` in issue #12), the project's documentation has accumulated inconsistencies and gaps:
