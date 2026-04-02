@@ -1,211 +1,72 @@
-# aidw
+# AIDW — AI Dev Workflow
 
-AI Dev Workflow — trigger AI workflows from GitHub issue/PR comments.
-
-## How It Works
+CLI that turns descriptions into draft PRs via Claude Code.
 
 ```
-Issue → @aidw plan → PR with docs/plans/{number}-{slug}.md → @aidw build → Code + Tests + Docs
-                                                  → @aidw refine → Updated plan
-                                                  → @aidw iterate → Updated Code
-                                                  → @aidw codereview → Review Comment
-
-Issue → @aidw oneshot → PR with Code + Tests + Docs (all-in-one)
+aidw one-shot "add rate limiting to the API" → draft PR
 ```
-
-Comment `@aidw plan` on any issue and the bot will:
-1. Spin up an isolated E2B sandbox
-2. Clone your repo
-3. Run Claude Code to analyze the issue and create a plan
-4. Push a branch and open a draft PR with the plan in `docs/plans/`
-
-Then refine the plan, implement it, or iterate on the result — all from PR comments.
-
-## Commands
-
-| Command | Context | What it does |
-|---------|---------|--------------|
-| `@aidw plan` | Issue | Create branch + PR with implementation plan |
-| `@aidw refine` | PR | Update plan based on feedback |
-| `@aidw build` | PR | Implement the plan (code + tests + docs) |
-| `@aidw iterate` | PR | Refine implementation based on feedback |
-| `@aidw codereview` | PR | Analyze changes and post a review comment |
-| `@aidw oneshot` | Issue | Full automation in one shot |
 
 ## Install
 
 ```bash
-uv tool install git+https://github.com/Mandalorian007/aidw
+uv tool install aidw
+aidw setup
 ```
 
-## Update
+`aidw setup` verifies dependencies (`git`, `gh`, `claude`) and installs Claude Code slash commands.
+
+## Commands
+
+### `aidw one-shot "description"`
+
+Plan, implement, test, and open a draft PR — fully autonomous.
 
 ```bash
-uv tool upgrade aidw
+aidw one-shot "add rate limiting to the API"
+# → https://github.com/you/repo/pull/42
 ```
 
-If running as a launchd service, restart it to pick up the new version:
+### `aidw iterate <pr> ["feedback"]`
+
+Iterate on an existing PR. Reads review comments and applies changes.
 
 ```bash
-uv tool upgrade aidw && launchctl kickstart -k gui/$(id -u)/com.aidw.server
+aidw iterate 42 "fix the error handling in the retry logic"
+aidw iterate https://github.com/you/repo/pull/42
 ```
 
-## Configure
+### `aidw cleanup`
 
-### Quick Setup
+Remove orphaned `aidw/*` worktrees left behind by interrupted runs.
 
 ```bash
-aidw config
+aidw cleanup
 ```
 
-Prompts for all credentials interactively. Press Enter to keep existing values.
+### `aidw setup`
 
-### Set a Single Credential
+Install slash commands to `~/.claude/commands/aidw/` and verify dependencies.
 
-```bash
-aidw config --set KEY=VALUE
-```
+### `aidw uninstall`
 
-### Required Credentials
+Remove slash commands and clean up worktrees.
 
-| Credential | Description | How to get |
-|------------|-------------|------------|
-| `AIDW_WEBHOOK_SECRET` | GitHub webhook signature secret | Generate any secret string |
-| `E2B_API_KEY` | E2B sandbox API key | [e2b.dev/dashboard/keys](https://e2b.dev/dashboard/keys) |
-| `GH_TOKEN` | GitHub PAT with `repo` scope | GitHub Settings > Developer settings > Personal access tokens |
-| `CLAUDE_CODE_TOKEN` | Long-lived Claude Code auth token | Run `claude setup-token` |
+## Slash Commands
 
-Credentials are stored in `~/.config/aidw/credentials` with `600` permissions. Environment variables take precedence over the credentials file.
+After `aidw setup`, these commands are available inside any Claude Code session:
 
-### Claude Code Token
-
-Claude Code needs a long-lived token to run in the sandbox:
-
-```bash
-claude setup-token
-aidw config --set CLAUDE_CODE_TOKEN=<paste-token-here>
-```
-
-## Run
-
-### Webhook Server
-
-```bash
-aidw server           # Start webhook server
-aidw server --dev     # With auto-reload
-```
-
-### Run as a Service (macOS)
-
-To keep the server running across reboots, use `launchd`:
-
-```bash
-# Create the plist (adjust paths if your setup differs)
-cat > ~/Library/LaunchAgents/com.aidw.server.plist << 'EOF'
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>Label</key>
-    <string>com.aidw.server</string>
-    <key>ProgramArguments</key>
-    <array>
-        <string>$HOME/.local/bin/aidw</string>
-        <string>server</string>
-    </array>
-    <key>RunAtLoad</key>
-    <true/>
-    <key>KeepAlive</key>
-    <true/>
-    <key>StandardOutPath</key>
-    <string>$HOME/.config/aidw/server.log</string>
-    <key>StandardErrorPath</key>
-    <string>$HOME/.config/aidw/server.log</string>
-    <key>EnvironmentVariables</key>
-    <dict>
-        <key>PATH</key>
-        <string>$HOME/.local/bin:/usr/local/bin:/usr/bin:/bin</string>
-    </dict>
-</dict>
-</plist>
-EOF
-
-# Replace $HOME with your actual home directory
-sed -i '' "s|\$HOME|$HOME|g" ~/Library/LaunchAgents/com.aidw.server.plist
-
-# Load (starts immediately and on every reboot)
-launchctl load ~/Library/LaunchAgents/com.aidw.server.plist
-
-# Check status
-launchctl list | grep aidw
-
-# View logs
-tail -f ~/.config/aidw/server.log
-
-# Stop the service
-launchctl unload ~/Library/LaunchAgents/com.aidw.server.plist
-```
-
-The service auto-restarts if the process crashes (`KeepAlive: true`).
-
-### Webhook Management
-
-Manage GitHub webhooks directly from the CLI:
-
-```bash
-aidw webhook add --repo owner/repo       # Create webhook on a repo
-aidw webhook status --repo owner/repo    # Show config + recent deliveries
-aidw webhook remove --repo owner/repo    # Remove webhook from a repo
-```
-
-The webhook URL is built from `server.domain` in `~/.config/aidw/config.yml`. Set it during `aidw config` or manually:
-
-```yaml
-server:
-  domain: https://your-server.example.com
-  port: 8787
-  workers: 3
-```
-
-If no domain is configured, it falls back to `http://localhost:{port}/webhook`.
-
-You can also expose the server with [Tailscale Funnel](https://tailscale.com/kb/1223/funnel) or ngrok.
-
-### Manual Triggers
-
-Run workflows directly from the CLI for testing or CI:
-
-```bash
-aidw run plan --repo owner/repo --issue 123
-aidw run build --repo owner/repo --pr 124
-aidw run refine --repo owner/repo --pr 124 --instruction "simplify the approach"
-aidw run iterate --repo owner/repo --pr 124 --instruction "fix the failing test"
-aidw run codereview --repo owner/repo --pr 124 --instruction "focus on error handling"
-aidw run oneshot --repo owner/repo --issue 123
-```
-
-## Architecture
-
-```
-GitHub Webhook
-       |
-  FastAPI Server --> SQLite (sessions)
-       |
-  E2B Sandbox
-       |
-  Claude Code --> git push --> GitHub PR
-              \-> AIDW_REVIEW.md --> GitHub Comment (codereview only)
-```
-
-Each workflow runs in an isolated [E2B](https://e2b.dev) sandbox with full repo context. Changes are committed and pushed directly from the sandbox. The `codereview` command is read-only — it posts a review comment instead of pushing code.
+- `/aidw:one-shot-pr <task>` — plan, implement, and open a draft PR
+- `/aidw:iterate --pr <number> --branch <branch> [feedback]` — iterate on an existing PR
 
 ## Requirements
 
-- Python 3.11+
-- [E2B](https://e2b.dev) account for sandbox execution
-- GitHub PAT with `repo` scope
-- Claude Code token (run `claude setup-token`)
+- **git** — version control
+- **gh** — [GitHub CLI](https://cli.github.com/), authenticated (`gh auth login`)
+- **claude** — [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code)
 
-## License
+## How It Works
 
-MIT
+1. You run `aidw one-shot "description"`
+2. AIDW generates a slug and dispatches to Claude Code in an isolated git worktree
+3. Claude Code explores the repo, implements changes, runs tests, and opens a draft PR
+4. AIDW cleans up the worktree and prints the PR URL
