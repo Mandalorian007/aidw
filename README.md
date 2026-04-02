@@ -51,6 +51,52 @@ Install slash commands to `~/.claude/commands/aidw/` and verify dependencies.
 
 Remove slash commands and clean up worktrees.
 
+## What to Expect
+
+### Draft PRs
+
+When `aidw one-shot` finishes, you get a draft PR with a structured body:
+
+```
+## Summary
+Add rate limiting to API endpoints using a token bucket algorithm
+to prevent abuse and ensure fair usage across tenants.
+
+## Changes
+- Add rate limiter middleware with per-tenant token bucket
+- Wire middleware into API router for all authenticated endpoints
+- Add configuration for rate limits in settings
+
+## Testing
+- Unit tests for token bucket logic pass
+- Integration tests verify rate limiting triggers at threshold
+- Existing API tests unaffected
+```
+
+### Iteration Comments
+
+When `aidw iterate` finishes, it posts a comment on the PR summarizing what changed:
+
+```
+## Iteration Summary
+Address reviewer feedback on error handling and test coverage.
+
+### Feedback Addressed
+- Reviewer: return 429 with Retry-After header instead of generic 400
+- Reviewer: add test for concurrent request handling
+
+### Changes Made
+- Updated rate limiter to return 429 with Retry-After header
+- Added concurrent request test using threading
+
+### Testing
+- All existing and new tests pass
+```
+
+### Timing
+
+Runs typically take 5-15 minutes depending on task complexity and codebase size.
+
 ## Slash Commands
 
 After `aidw setup`, these commands are available inside any Claude Code session:

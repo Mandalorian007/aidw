@@ -96,6 +96,11 @@ def one_shot(description: str) -> None:
     click.echo(f"Generating PR for: {description}")
     click.echo(f"Worktree: {worktree_name}")
     click.echo()
+    click.secho(
+        "Claude is designing, implementing, and testing your changes. "
+        "This typically takes 5-15 minutes.",
+        fg="cyan",
+    )
 
     try:
         result_text = run_claude("/aidw:one-shot-pr", description, worktree_name)
@@ -111,6 +116,7 @@ def one_shot(description: str) -> None:
     pr_url = extract_pr_url(result_text)
     if pr_url:
         click.echo()
+        click.secho("Draft PR created:", fg="green")
         click.secho(pr_url, fg="green", bold=True)
     else:
         click.echo()
@@ -156,6 +162,11 @@ def iterate(pr: str, feedback: str) -> None:
         click.echo(f"Feedback: {feedback}")
     click.echo(f"Worktree: {worktree_name}")
     click.echo()
+    click.secho(
+        "Claude is reviewing feedback and updating the PR. "
+        "This typically takes 5-15 minutes.",
+        fg="cyan",
+    )
 
     arguments = f"--pr {pr_number} --branch {branch}"
     if feedback:
@@ -175,6 +186,7 @@ def iterate(pr: str, feedback: str) -> None:
     pr_url = extract_pr_url(result_text)
     if pr_url:
         click.echo()
+        click.secho("PR updated:", fg="green")
         click.secho(pr_url, fg="green", bold=True)
     else:
         click.echo()

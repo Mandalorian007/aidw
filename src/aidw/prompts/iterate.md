@@ -136,4 +136,21 @@ Launch another round if the previous round made fixes (fixes can introduce new i
 1. **Clean up** — remove `/tmp/$BRANCH-plan.md`
 2. **Commit** — clear commit message describing what feedback was addressed. Atomic commits where appropriate.
 3. **Push** — `git push origin HEAD`
-4. **Output the PR URL** — print the PR URL as the very last line of your response. This is critical — the calling tool parses it from your output.
+4. **Post an iteration summary** as a comment on the PR so reviewers can see what changed:
+   ```
+   gh pr comment <number> --body "$(cat <<'EOF'
+   ## Iteration Summary
+   <1-2 sentences: what this iteration addresses>
+
+   ### Feedback Addressed
+   <bullet list of review feedback and user instructions that were addressed>
+
+   ### Changes Made
+   <bullet list of key changes>
+
+   ### Testing
+   <what was tested and verified>
+   EOF
+   )"
+   ```
+5. **Output the PR URL** — print the PR URL as the very last line of your response. Use `gh pr view <number> --json url -q .url` to get the URL. This is critical — the calling tool parses it from your output.

@@ -125,8 +125,19 @@ Launch another round if the previous round made fixes (fixes can introduce new i
 1. **Clean up** — remove `/tmp/$BRANCH-plan.md`
 2. **Commit** — clear, descriptive commit messages. Atomic commits where appropriate.
 3. **Push** — `git push origin HEAD`
-4. **Create a draft PR:**
+4. **Create a draft PR** with a structured body that helps human reviewers:
    ```
-   gh pr create --draft --title "<concise title>" --body "<description of changes>"
+   gh pr create --draft --title "<concise, descriptive title>" --body "$(cat <<'EOF'
+   ## Summary
+   <1-3 sentences: what this PR does and why>
+
+   ## Changes
+   <bullet list of key changes, grouped by area — focus on what matters to a reviewer, not every file touched>
+
+   ## Testing
+   <what was tested: commands run, checks passed, edge cases verified>
+   EOF
+   )"
    ```
+   **Title guidance:** Use a clear action phrase (e.g., "Add rate limiting to API endpoints", "Fix session timeout handling"). Avoid vague titles like "Update code" or "Various improvements".
 5. **Output the PR URL** — print the PR URL as the very last line of your response. This is critical — the calling tool parses it from your output.
